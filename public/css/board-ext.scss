@@ -1,0 +1,12 @@
+@mixin box-shadow($top, $left, $blur, $spread, $color, $inset:"") {
+    -webkit-box-shadow: $top $left $blur $spread $color #{$inset};
+    -moz-box-shadow: $top $left $blur $spread $color #{$inset};
+    box-shadow: $top $left $blur $spread $color #{$inset};
+}
+
+.opp-highlight-white {
+    @include box-shadow(0, 0, 3px, 3px, yellow inset);
+}
+.opp-highlight-black {
+    @include box-shadow(0, 0, 3px, 3px, blue inset);
+}

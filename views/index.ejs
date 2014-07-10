@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Chess</title>
+    <link rel="stylesheet" href="bootstrap-3.2.0-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css">
+    <link rel="stylesheet" href="js/chessboardjs/css/chessboard-0.3.0.css">
+    <link rel="stylesheet" href="omni.css"> <!-- TODO: it would be nice to include above stylesheets in this -->
+</head>
+<body>
+<div class="container">
+    <div id="userInfo"></div>
+
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    </div>
+    
+    <div id="board" aria-labelledby="myModalLabel" aria-hidden="true"></div>
+    
+<!--     <div id="log_container">
+        <ol id="log"></ol>
+        <input id="textinput" class="boxsizingBorder" placeholder=">"></textarea>
+    </div>
+
+    <ol id="clients" class="list-inline"></ol> -->
+
+
+
+    <!-- SCRIPTS -->
+    <script src="js/mustache.js"></script>
+    <script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script src="bootstrap-3.2.0-dist/js/bootstrap.js"></script>
+
+    <script src="js/chessboardjs/js/chessboard-0.3.0.js"></script>
+    <script src="js/chessjs/chess.js"></script>
+    <script src="js/main.js"></script>
+</div>
+</body>
+</html>

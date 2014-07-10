@@ -1,0 +1,35 @@
+messages
+--------
+
+pong (currently used to confirm initial connection)
+    whatever
+
+debug
+    whatever
+
+disconnect
+    built-in
+
+
+
+
+start
+    white : BOOL
+
+move
+    from  : STRING
+    to    : STRING
+
+end
+    result : 1, 0.5, 0 (WIN/TIE/LOOSE)
+
+
+stats
+    wins
+    ties
+    losses
+    elo
+
+
+
+
