@@ -3,17 +3,23 @@
 <head>
     <title>Chess</title>
     <link rel="stylesheet" href="bootstrap-3.2.0-dist/css/bootstrap.css">
-    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="js/chessboardjs/css/chessboard-0.3.0.css">
     <link rel="stylesheet" href="omni.css"> <!-- TODO: it would be nice to include above stylesheets in this -->
 </head>
 <body>
 <div class="container">
-    <div id="userInfo"></div>
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
 
-    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-    </div>
-    
+    <div id="userInfo"></div>
+    <div id="clock"></div>
+    <div id="gameInfo"></div>
+
+    <button class="btn btn-success joingame has-spinner center-block">
+        <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
+        Join Game
+    </button>
+
     <div id="board" aria-labelledby="myModalLabel" aria-hidden="true"></div>
     
 <!--     <div id="log_container">
@@ -31,6 +37,8 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script src="bootstrap-3.2.0-dist/js/bootstrap.js"></script>
+
+    <script src="js/jquery.countdown.min.js"></script>
 
     <script src="js/chessboardjs/js/chessboard-0.3.0.js"></script>
     <script src="js/chessjs/chess.js"></script>

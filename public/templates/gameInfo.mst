@@ -1,0 +1,3 @@
+<span class="username">{{opponent}}</span>, <span class="stat-title">Elo ranking:</span> {{elo}}
+<br/>
+<span class="stat-title">My time: {{time}}, Opponent time: {{opponent}}</span>

@@ -1,5 +1,7 @@
 var User = require('./models/user');
 
+var gm = new GameManager();
+
 var ResultEnum = {
     LOSE: 0,
     TIE: 0.5,
@@ -10,33 +12,34 @@ function GameManager() {
     this.waiting = []
 }
 
-GameManager.prototype.ready = function (player) {
+GameManager.prototype.ready = function (player, callback) {
     if (!player.game) {
         if (this.waiting.indexOf(player) === -1) {
             this.waiting.push(player);
             this.start_game_if_possible();
         }
-        console.log('ready', this.waiting);
         // inform them even if they are already waiting
-        // TODO, move to callback
-        player.socket.emit('ready');
+        callback();
     }
 }
 
 GameManager.prototype.start_game_if_possible = function () {
-    console.log('waiting', this.waiting);
     if (this.waiting.length > 1) {
+
         // just take first 2 for now
         var random01 = Math.floor(Math.random()*2);
         var white = this.waiting[random01];
         var black = this.waiting[1-random01];
         this.waiting.splice(0, 2);
 
-        white.game = black.game = new Game(white, black);
+        var game = new Game(white, black, 5 * 60 * 1000);
+
+        white.game = game.game_accessor_for_player(true);
+        black.game = game.game_accessor_for_player(false);
 
         // TODO, I want to move this to callbacks (don't want to send sockets outside of server)
-        white.socket.emit('start', { white: true});
-        black.socket.emit('start', { white: false});
+        white.socket.emit('start', { white: true, opponent: black.username, time: white.game.time() });
+        black.socket.emit('start', { white: false, opponent: white.username, time: black.game.time() });
     }
 };
 
@@ -56,11 +59,10 @@ function Player(socket, callback) {
 
     var self = this;
     User.findOne({'local.username' : this.username}, function (err, user) {
-        console.log('err/user', err, user);
         if (!err && user) {
-            console.log('got user');
             self.user = user;
-            console.log('this.user', user);
+        } else {
+            console.log('err/user', err, user);
         }
 
         callback(user);
@@ -71,23 +73,17 @@ Player.prototype.toString = function () {
     return this.username;
 };
 
-Player.prototype.getOpponent = function () {
-    if (this.game) {
-        return this.game.white === this ? this.game.black : this.game.white;
-    }
-};
-
 Player.prototype.hasTurn = function () {
+    // console.log("hasTurn", this.game, this.game.currentTurn())
     return this.game && this.game.currentTurn() === this;
 };
 
-Player.prototype.move = function (callback) {
-    var opponent = this.getOpponent();
-    if (opponent && this.hasTurn()) {
-        this.game.turn += 1;
-        callback(opponent);
+Player.prototype.move = function (move, callback) {
+    if (this.hasTurn()) {
+        this.game.makeMove(move); // increments turn, set lastMove
+        callback(this.game.opponent);
     } else {
-        console.log("not your turn", player.username);
+        console.log("not your turn", this.username);
     }
 }
 
@@ -101,11 +97,13 @@ Player.prototype.updateElos = function (opponent, result) {
 
     this.user.chess.elo += change;
     opponent.user.chess.elo -= change;
+
+    return change;
 };
 
 Player.prototype.updateStats = function () {
     // make this nicer?
-    switch (this.resultClaim) {
+    switch (this.game.resultClaim()) {
         case ResultEnum.WIN:
             this.user.chess.wins += 1;
             break;
@@ -118,58 +116,107 @@ Player.prototype.updateStats = function () {
     }
 }
 
-function Game(white, black) {
-    this.white = white;
-    this.black = black;
+function Game(white, black, time) {
     this.turn = 0;
 
-    this.whiteLastFen;
-    this.whiteLastMove;
+    this.white = {
+        player: white,
+        time: time,
+        startTime: Date.now()
+    }
 
-    this.blackLastFen;
-    this.blackLastMove;
+    this.black = {
+        player: black,
+        time: time
+    }
 };
 
-Game.prototype.currentTurn = function () {
-    return this.turn % 2 ? this.black : this.white;
-};
+Game.prototype.game_accessor_for_player = function (white) {
+    var myStats = white ? this.white : this.black;
+    var oppStats = white ? this.black : this.white;
 
-Game.prototype.cleanUp = function () {
-    this.white.resultClaim = this.black.resultClaim = undefined;
-    this.white.game = this.black.game = null;
+    var self = this;
+
+    var game_accessor = {
+        isWhite: white,
+        opponent: oppStats.player,
+        time: function () {
+            return myStats.time;
+        },
+        oppTime: function () {
+            return myStats.oppTime;
+        },
+        lastMove: function () {
+            return myStats.lastMove;
+        },
+        oppLastMove: function () {
+            return oppStats.lastMove
+        },
+        resultClaim: function () {
+            return myStats.resultClaim
+        },
+        setResultClaim: function (claim) {
+            myStats.resultClaim = claim;
+        },
+        currentTurn: function () {
+            return self.turn % 2 ? self.black.player : self.white.player
+        },
+        makeMove: function (move) {
+            var timeUsed = Date.now() - myStats.startTime;
+            myStats.time -= timeUsed;
+
+            if (myStats.time < 0) {
+                //... return false?
+            }
+
+            console.log("time remaining", myStats.time, "used", timeUsed);
+            oppStats.startTime = Date.now();
+            myStats.lastMove = move;
+            self.turn += 1;
+        },
+        check_for_agreement: function (callback) { // TODO, ugly
+            self.check_for_agreement(callback);
+        }
+    }
+
+    return game_accessor;
 };
 
 Game.prototype.check_for_agreement = function (callback) {
+    console.log('check for agreement');
+
     if (this.white.resultClaim !== undefined && this.black.resultClaim !== undefined) {
         var agreement = this.white.resultClaim + this.black.resultClaim === ResultEnum.WIN;
 
         if (agreement) {
-            this.white.updateStats();
-            this.black.updateStats();
-            this.white.updateElos(this.black, this.white.resultClaim);
+            // TODO, clean all this up
+            this.white.player.updateStats();
+            this.black.player.updateStats();
+            var change = this.white.player.updateElos(this.black.player, this.white.resultClaim);
 
             var self = this;
-            this.white.user.save(function (err) {
+            this.white.player.user.save(function (err) {
                 if (err)
                     throw err;
 
                 // TODO, move out of chess.js
-                self.white.socket.emit('stats', self.white.user.chess);
+                self.white.player.socket.emit('stats', self.white.player.user.chess);
                 console.log("save success player");
             });
 
-            this.black.user.save(function (err) {
+            this.black.player.user.save(function (err) {
                 if (err)
                     throw err;
 
                 // TODO, move out of chess.js
-                self.black.socket.emit('stats', self.black.user.chess);
+                self.black.player.socket.emit('stats', self.black.player.user.chess);
                 console.log("save success opponent");
             });
         }
 
         callback(agreement); // 2 ties = win, loss = 0.
-        this.cleanUp(); // is this safe here?
+        this.white.player.game = undefined;
+        this.black.player.game = undefined;
     }
 };
 
@@ -179,18 +226,24 @@ Player.prototype.get_reconnection_info = function (callback) {
         stats: this.user.chess
     };
 
+    info['waiting'] = gm.waiting.indexOf(this) !== -1;
+
     if (this.game) {
-        info['white'] = this === this.game.white;
-        info['fen'] = this.lastMove ? this.lastMove.fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // TODO, eek
+        // TODO, most of this information should be the same as the start game information
+        info['white'] = this.game.isWhite;
+        info['fen'] = this.game.lastMove() ? this.game.lastMove().fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // TODO, eek
+        info['opponent'] = this.game.opponent.username;
 
         if (this.hasTurn()) {
-            info['move'] = this.getOpponent().lastMove;            
+            info['move'] = this.game.oppLastMove(); // something is removing this by the time it reaches client if it undefined            
         }
     }
+
+    console.log('info', info);
 
     callback(info);
 }
 
-exports.GameManager = new GameManager();
+exports.GameManager = gm;
 exports.Player = Player;
 exports.Game = Game;

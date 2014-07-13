@@ -7,7 +7,11 @@
         <div class="modal-body">
             Successfully logged in as: {{username}}
             {{! <br/> }}
-            <button type="button" class="btn btn-success joingame center-block">Join game</button>
+            <button class="btn btn-success joingame has-spinner center-block">
+                <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
+                Join Game
+            </button>
+            {{! <button type="button" class="btn btn-success joingame center-block">Join game</button> }}
         </div>
     </div>
 </div>

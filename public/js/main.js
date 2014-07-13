@@ -65,6 +65,7 @@ $(document).ready(function() {
             playerUsername = json.username;
 
             if (json.white !== undefined) {
+                // TODO, combine this with new game
                 setColor(json.white);
 
                 chess = new Chess(json.fen);
@@ -82,8 +83,14 @@ $(document).ready(function() {
                 $('#myModal').html(rendered);
 
                 $('.joingame').click(function() {
+                    $(this).toggleClass('active');
                     socket.emit('ready');
                 });
+
+                if (json.waiting) {
+                    $('.joingame').toggleClass('active', true);
+                    $('.joingame').prop("disabled", true);
+                }
 
                 $('#myModal').modal('show');
             });
@@ -119,7 +126,19 @@ $(document).ready(function() {
             board.position('start');
             chess = new Chess();
 
-            $('#myModal').modal('hide');
+            startClock(json.time);
+
+            $('.joingame').toggleClass('active', false);
+
+            $.get('templates/start_game_modal.mst', function (template) {
+                var rendered = Mustache.render(template, {
+                    opponent: json.opponent
+                });
+                $('#myModal').html(rendered);
+                $('#myModal').modal('show');
+
+                // TODO, this could be annoying to the player
+            });
 
             if (foolsMate) {
                 if (whitePlayer) {
@@ -190,7 +209,7 @@ $(document).ready(function() {
         });
 
         socket.on('ready', function () {
-            $('.joingame').prop("disabled", true)
+            $('.joingame').prop("disabled", true);
         });
 
         socket.on('disconnect', function (data) {
@@ -343,5 +362,16 @@ $(document).ready(function() {
 
     function onMouseoutSquare(square, piece) {
         removeGreySquares();
+    };
+
+    function startClock(time) {
+        $('#clock').countdown(Date.now() + time).on('update.countdown', function(event) {
+        var $this = $(this).html(event.strftime(''
+            // + '<span>%-w</span> week%!w '
+            // + '<span>%-d</span> day%!d '
+            // + '<span>%H</span> hr '
+            + '<span>%M</span> min '
+            + '<span>%S</span> sec'));
+        });
     };
 });

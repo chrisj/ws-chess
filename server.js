@@ -74,8 +74,6 @@ sio.use(socketio_jwt.authorize({
 
 
 
-
-
 // usernames -> ChessPlayer
 var clients = {};
 var chess = require('./app/chess.js');
@@ -84,6 +82,7 @@ var chess = require('./app/chess.js');
 function similarStuff(player) {
     registerChessEventsForPlayer(player);
     player.get_reconnection_info(function (info) {
+        console.log('got info');
         player.socket.emit('reconnection_info', info);
     });
 };
@@ -120,9 +119,8 @@ function registerChessEventsForPlayer(player) {
 
         // TODO, don't do this now because they could reconnect. Wait 30 seconds?
         // probably tell the opponent to wait for client.
-        var opponent = player.getOpponent();
-        if (opponent) {
-            opponent.socket.emit('opponentlostconnection');
+        if (player.game) {
+            player.game.opponent.socket.emit('opponentlostconnection');
 
             var playerStillNotBack = false;
             if (playerStillNotBack) {
@@ -139,32 +137,35 @@ function registerChessEventsForPlayer(player) {
 
     player.socket.on('message', function (msg) {
         console.log('message', msg);
-        socket.broadcast.emit('message', msg);
+        player.socket.broadcast.emit('message', msg);
     });
 
     player.socket.on('ready', function () {
         console.log('ready');
-        chess.GameManager.ready(player);
+        chess.GameManager.ready(player, function () {
+            player.socket.emit('ready');
+        });
     });
 
     player.socket.on('move', function (json) {
-        player.move(function (opponent) { // only called if move succeeds
-            player.lastMove = json;
-
+        player.move(json, function (opponent) { // only called if move succeeds
             console.log("sending move from " + player.username + " to " + opponent.username);
+
+            json['time'] = player.game.time; // TODO, don't like this
+
             opponent.socket.emit('move', json); // TODO, better way to forward?
         });
     });
 
     player.socket.on('end', function (json) {
         console.log('end', player.username, json);
-        player.resultClaim = json.result;
+        player.game.setResultClaim(json.result); // TODO, move and clean this
 
         player.game.check_for_agreement(function (agreement) {
             console.log("agreement", agreement);
-            var opponent = player.getOpponent();
-            socket.emit('end', {agree: agreement, result: player.resultClaim});
-            opponent.socket.emit('end', {agree: agreement, result: opponent.resultClaim});
+            var opponent = player.game.opponent;
+            player.socket.emit('end', {agree: agreement, result: player.game.resultClaim()});
+            opponent.socket.emit('end', {agree: agreement, result: opponent.game.resultClaim()});
         });
     });
 };
