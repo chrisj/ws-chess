@@ -45,6 +45,7 @@ mongoose.connect(configDB.url);
 
 require('./config/passport')(passport);
 
+app.set('views', __dirname + "/views");
 app.set('view engine', 'ejs');
 app.use(express.static(__dirname + "/public"));
 app.use(morgan('dev'));
@@ -82,7 +83,6 @@ var chess = require('./app/chess.js');
 function similarStuff(player) {
     registerChessEventsForPlayer(player);
     player.get_reconnection_info(function (info) {
-        console.log('got info');
         player.socket.emit('reconnection_info', info);
     });
 };
@@ -92,9 +92,8 @@ sio.sockets.on('connection', function (socket) {
     if (clients[socket.decoded_token.local.username]) {
         var player = clients[socket.decoded_token.local.username];
         console.log('disconnecting old socket for', player.username);
-        player.socket.emit('newsocket'); // TODO, not used yet
+        // player.socket.emit('newsocket'); // TODO, not used yet
         player.socket.disconnect();
-        // update player to use the new socket
         player.socket = socket;
 
         similarStuff(player);
@@ -142,17 +141,20 @@ function registerChessEventsForPlayer(player) {
 
     player.socket.on('ready', function () {
         console.log('ready');
-        chess.GameManager.ready(player, function () {
+        chess.GameManager.ready(player, function () { // callback for acknowledge ready, only called if we don't start game
             player.socket.emit('ready');
+        },
+        function (white, black) { // callback for starting game
+            white.socket.emit('start', { white: true, opponent: black.username, time: white.game.time() });
+            black.socket.emit('start', { white: false, opponent: white.username, time: black.game.time() });
         });
     });
 
     player.socket.on('move', function (json) {
         player.move(json, function (opponent) { // only called if move succeeds
             console.log("sending move from " + player.username + " to " + opponent.username);
-
-            json['time'] = player.game.time; // TODO, don't like this
-
+            json['time'] = opponent.game.time(); // TODO, don't like this
+            // console.log('time', opponent.game.time(), player.game.time());
             opponent.socket.emit('move', json); // TODO, better way to forward?
         });
     });
@@ -161,11 +163,14 @@ function registerChessEventsForPlayer(player) {
         console.log('end', player.username, json);
         player.game.setResultClaim(json.result); // TODO, move and clean this
 
-        player.game.check_for_agreement(function (agreement) {
+        player.game.check_for_agreement(function (agreement, change) {
             console.log("agreement", agreement);
             var opponent = player.game.opponent;
-            player.socket.emit('end', {agree: agreement, result: player.game.resultClaim()});
-            opponent.socket.emit('end', {agree: agreement, result: opponent.game.resultClaim()});
+            player.socket.emit('end', {agree: agreement, result: player.game.resultClaim(), elochange: change});
+            opponent.socket.emit('end', {agree: agreement, result: opponent.game.resultClaim(), elochange: -change});
+        },
+        function (player) { // save callback
+            player.socket.emit('stats', player.user.chess);
         });
     });
 };

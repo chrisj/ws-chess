@@ -12,18 +12,19 @@ function GameManager() {
     this.waiting = []
 }
 
-GameManager.prototype.ready = function (player, callback) {
+GameManager.prototype.ready = function (player, callbackready, callbackgame) {
     if (!player.game) {
         if (this.waiting.indexOf(player) === -1) {
-            this.waiting.push(player);
-            this.start_game_if_possible();
+            this.waiting.push(player);            
+            
+            if (!this.start_game_if_possible(callbackgame)) {
+                callbackready();
+            }
         }
-        // inform them even if they are already waiting
-        callback();
     }
 }
 
-GameManager.prototype.start_game_if_possible = function () {
+GameManager.prototype.start_game_if_possible = function (callback) {
     if (this.waiting.length > 1) {
 
         // just take first 2 for now
@@ -33,14 +34,14 @@ GameManager.prototype.start_game_if_possible = function () {
         this.waiting.splice(0, 2);
 
         var game = new Game(white, black, 5 * 60 * 1000);
-
         white.game = game.game_accessor_for_player(true);
         black.game = game.game_accessor_for_player(false);
 
-        // TODO, I want to move this to callbacks (don't want to send sockets outside of server)
-        white.socket.emit('start', { white: true, opponent: black.username, time: white.game.time() });
-        black.socket.emit('start', { white: false, opponent: white.username, time: black.game.time() });
+        callback(white, black);
+        return true;
     }
+
+    return false;
 };
 
 function fastRemove(arr, element) {
@@ -74,7 +75,6 @@ Player.prototype.toString = function () {
 };
 
 Player.prototype.hasTurn = function () {
-    // console.log("hasTurn", this.game, this.game.currentTurn())
     return this.game && this.game.currentTurn() === this;
 };
 
@@ -92,8 +92,12 @@ Player.prototype.Q = function () {
 };
 
 Player.prototype.updateElos = function (opponent, result) {
+    function Q (player) {
+        return Math.pow(10, (player.user.chess.elo / 4000));
+    };
+
     var K = 25;
-    var change =  Math.round(K * (result - (this.Q() / (this.Q() + opponent.Q()))));
+    var change =  Math.round(K * (result - (Q(this) / (Q(this) + Q(opponent)))));
 
     this.user.chess.elo += change;
     opponent.user.chess.elo -= change;
@@ -182,39 +186,37 @@ Game.prototype.game_accessor_for_player = function (white) {
     return game_accessor;
 };
 
-Game.prototype.check_for_agreement = function (callback) {
+Game.prototype.check_for_agreement = function (callback, savecallback) {
     console.log('check for agreement');
 
     if (this.white.resultClaim !== undefined && this.black.resultClaim !== undefined) {
         var agreement = this.white.resultClaim + this.black.resultClaim === ResultEnum.WIN;
 
+        var change = 0;
+
         if (agreement) {
             // TODO, clean all this up
             this.white.player.updateStats();
             this.black.player.updateStats();
-            var change = this.white.player.updateElos(this.black.player, this.white.resultClaim);
+            change = this.white.player.updateElos(this.black.player, this.white.resultClaim);
 
             var self = this;
             this.white.player.user.save(function (err) {
                 if (err)
                     throw err;
 
-                // TODO, move out of chess.js
-                self.white.player.socket.emit('stats', self.white.player.user.chess);
-                console.log("save success player");
+                savecallback(self.white.player);
             });
 
             this.black.player.user.save(function (err) {
                 if (err)
                     throw err;
 
-                // TODO, move out of chess.js
-                self.black.player.socket.emit('stats', self.black.player.user.chess);
-                console.log("save success opponent");
+                savecallback(self.black.player);
             });
         }
 
-        callback(agreement); // 2 ties = win, loss = 0.
+        callback(agreement, change); // 2 ties = win, loss = 0.
         this.white.player.game = undefined;
         this.black.player.game = undefined;
     }
@@ -240,7 +242,6 @@ Player.prototype.get_reconnection_info = function (callback) {
     }
 
     console.log('info', info);
-
     callback(info);
 }
 
