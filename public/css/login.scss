@@ -5,18 +5,6 @@
     margin-right: auto;
 }
 
-#login {
-    max-width: 400px;
-
-    .form-group {
-        width: 80%;
-    }
-}
-
-#loginButton {
-    flat: right;
-}
-
 #log_container {
     width: 300px;
     border: 1px solid #000;
@@ -64,4 +52,8 @@
 
 #userInfo {
     // display: none;
+    // background-color: #aaa;
+    height: 50px;
+    // padding: 10px;
+    // border-radius: 5px;
 }

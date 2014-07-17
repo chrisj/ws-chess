@@ -54,8 +54,8 @@ GameManager.prototype.remove_player = function (player) {
     this.waiting = fastRemove(this.waiting, player);
 }
 
-function Player(socket, callback) {
-    this.username = socket.decoded_token.local.username;
+function Player(username, socket, callback) {
+    this.username = username;
     this.socket = socket;
 
     var self = this;
@@ -178,8 +178,8 @@ Game.prototype.game_accessor_for_player = function (white) {
             myStats.lastMove = move;
             self.turn += 1;
         },
-        check_for_agreement: function (callback) { // TODO, ugly
-            self.check_for_agreement(callback);
+        check_for_agreement: function (callback, savecallback) { // TODO, ugly
+            self.check_for_agreement(callback, savecallback);
         }
     }
 

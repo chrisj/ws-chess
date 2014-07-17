@@ -13,59 +13,116 @@ sass.render({
                 console.log('SCSS saved');
             }
         })
-        // console.log(css);
         console.log(sassstats);
     },
     stats: sassstats
 });
 
-var http     = require('http');
-var express  = require('express');
-var app      = express();
-var port     = process.env.PORT || 8888;
-var mongoose = require('mongoose');
-var passport = require('passport');
-var flash    = require('connect-flash');
 
-// sockets
-var io = require('socket.io');
-var socketio_jwt = require('socketio-jwt');
-var jwt = require('jsonwebtoken');
-var jwt_secret = 'foo bar big secret';
 
-// express 4 dependencies
-var morgan       = require('morgan');
-var cookieParser = require('cookie-parser');
-var bodyParser   = require('body-parser');
-var session      = require('express-session');
+
+// http
+var http       = require('http');
+var url        = require("url");
+var qs         = require('querystring');
+var logger     = require('morgan')('dev');
+var formidable = require('formidable');
+var static     = require('node-static');
+
+var port       = process.env.PORT || 8888;
+var mongoose   = require('mongoose');
 
 // database
-var configDB = require('./config/database.js');
-mongoose.connect(configDB.url);
+mongoose.connect('mongodb://localhost:27017/nodeappdb');
 
-require('./config/passport')(passport);
 
-app.set('views', __dirname + "/views");
-app.set('view engine', 'ejs');
-app.use(express.static(__dirname + "/public"));
-app.use(morgan('dev'));
-app.use(cookieParser());
-app.use(bodyParser());
-app.use(session({ secret: 'letsgorobben'}));
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(flash());
+function getTokenForUser (user) {
+    return jwt.sign(user, jwt_secret, { expiresInMinutes: 60 });
+}
 
-require('./app/routes.js')(app, passport);
+var User = require('./app/models/user');
 
-var server = http.createServer(app);
+function login (req, res) {
+    var form = new formidable.IncomingForm();
+
+    form.parse(req, function (err, fields, files) {
+        User.findOne({'local.username' : fields.username}, function (err, user) {
+            res.writeHead(200, {"Content-Type": "application/json"});
+            if (err || !user) {
+                console.log('err', err);
+                res.end(JSON.stringify({token: false}));
+                // return 
+            } else if (user.validPassword(fields.password)) {
+                res.end(JSON.stringify({token: getTokenForUser(user)}));
+            }
+        });
+    });
+};
+
+function signup (req, res) {
+    parseLogin(response, request, function (err, user) {
+        res.writeHead(200, {"Content-Type": "application/json"});
+        if (err || user) {
+            console.log('err', err);
+            res.end(JSON.stringify({token: false}));
+        } else {
+            var newUser = new User();
+            newUser.local.username = fields.username;
+            newUser.local.password = newUser.generateHash(fields.password);
+
+            newUser.save(function (err) {
+                if (err)
+                    throw err;
+                res.end(JSON.stringify({token: getTokenForUser(newUser)}));
+            });
+        }
+    });
+};
+
+var fileServer = new static.Server('./public');
+
+var handle = {
+    // GET: {
+    //     "/": index
+    // },
+    POST: {
+        "/login": login,
+        // "/signup": signup
+    }
+};
+
+function route(handle, pathname, req, res) {
+    logger(req, res, function () {        
+        if (handle[req.method] && typeof handle[req.method][pathname] === 'function') {
+            handle[req.method][pathname](req, res);
+        } else {
+            // probably move under "/static"
+            fileServer.serve(req, res, function (err, result) {
+                if (err) {
+                    console.log("No request handler or file found for " + pathname);
+                    res.writeHead(404, {"Content-Type": "text/plain"});
+                    res.end();
+                }
+            });
+        }
+    });
+}
+
+var server = http.createServer(function (req, res) {
+    var pathname = url.parse(req.url).pathname;
+    route(handle, pathname, req, res);
+});
 
 server.listen(port, function () {
     console.log('The magic happens on port ' + port);
 });
 
-// socket
-var sio = io.listen(server);
+
+// sockets
+var sio = require('socket.io')(server);
+var socketio_jwt = require('socketio-jwt');
+var jwt = require('jsonwebtoken');
+var jwt_secret = 'foo bar big secret';
 
 sio.use(socketio_jwt.authorize({
     secret: jwt_secret,
@@ -80,7 +137,7 @@ var clients = {};
 var chess = require('./app/chess.js');
 
 
-function similarStuff(player) {
+function initPlayer(player) {
     registerChessEventsForPlayer(player);
     player.get_reconnection_info(function (info) {
         player.socket.emit('reconnection_info', info);
@@ -88,26 +145,28 @@ function similarStuff(player) {
 };
 
 sio.sockets.on('connection', function (socket) {
-    console.log('connection', socket.decoded_token.local.username);
-    if (clients[socket.decoded_token.local.username]) {
-        var player = clients[socket.decoded_token.local.username];
+    var username = socket.decoded_token.local.username;
+
+    console.log('connection', username);
+    if (clients[username]) {
+        var player = clients[username];
         console.log('disconnecting old socket for', player.username);
         // player.socket.emit('newsocket'); // TODO, not used yet
         player.socket.disconnect();
         player.socket = socket;
 
-        similarStuff(player);
+        initPlayer(player);
     } else { // new client
-        var player = new chess.Player(socket, function (user) {
+        var player = new chess.Player(username, socket, function (user) {
             if (user) {
-                similarStuff(player);
+                initPlayer(player);
                 sio.sockets.emit('clients', Object.keys(clients));
             } else {
                 // TODO: how can this happen? We already logged in? (Disconnect and log it?)
             }
         });
 
-        clients[player.username] = player; 
+        clients[username] = player; 
     }
 });
 

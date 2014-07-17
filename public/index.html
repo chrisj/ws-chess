@@ -11,14 +11,26 @@
 <div class="container">
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
 
-    <div id="userInfo"></div>
-    <div id="clock"></div>
-    <div id="gameInfo"></div>
+    <div id="userInfo">
+        <form id="loginform" class="form-inline" role="form">
+            <div class="form-group">
+                <input type="text" name="username" class="form-control" placeholder="Username" />
+            </div>
+            <div class="form-group">
+                <input type="password" name="password" class="form-control" placeholder="Password" />
+            </div>
+            <button type="submit" id="loginButton" class="btn btn-primary">Login</button>
+            <button type="button" id="signup" class="btn btn-success">Signup</button>
+        </form>
+    </div>
 
-    <button class="btn btn-success joingame has-spinner center-block">
+<button class="btn btn-success joingame has-spinner">
         <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
         Join Game
     </button>
+
+    <div id="clock"></div>
+    <div id="gameInfo"></div>
 
     <div id="board" aria-labelledby="myModalLabel" aria-hidden="true"></div>
     
@@ -28,6 +40,9 @@
     </div>
 
     <ol id="clients" class="list-inline"></ol> -->
+
+
+    Using gameboard.js and chess.js. Source is available at github.com/chrisj/ws-chess
 
 
 
