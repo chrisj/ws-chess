@@ -76,7 +76,7 @@ Player.prototype.toString = function () {
 };
 
 Player.prototype.hasTurn = function () {
-    return this.game && this.game.currentTurn() === this;
+    return this.game && this.game.currentTurn === this;
 };
 
 Player.prototype.move = function (move, callback) {
@@ -108,7 +108,7 @@ Player.prototype.updateElos = function (opponent, result) {
 
 Player.prototype.updateStats = function () {
     // make this nicer?
-    switch (this.game.resultClaim()) {
+    switch (this.game.resultClaim) {
         case ResultEnum.WIN:
             this.user.chess.wins += 1;
             break;
@@ -145,27 +145,16 @@ Game.prototype.game_accessor_for_player = function (white) {
     var game_accessor = {
         isWhite: white,
         opponent: oppStats.player,
-        time: function () {
-            return myStats.time;
-        },
-        oppTime: function () {
-            return myStats.oppTime;
-        },
-        lastMove: function () {
-            return myStats.lastMove;
-        },
-        oppLastMove: function () {
-            return oppStats.lastMove
-        },
-        resultClaim: function () {
-            return myStats.resultClaim
-        },
-        setResultClaim: function (claim) {
-            myStats.resultClaim = claim;
-        },
-        currentTurn: function () {
-            return self.turn % 2 ? self.black.player : self.white.player
-        },
+        get time() { return myStats.time; },
+        get oppTime() { return myStats.oppTime; },
+        get lastMove() { return myStats.lastMove; },
+        get oppLastMove() { return oppStats.lastMove },
+
+        get resultClaim() { return myStats.resultClaim },
+        set resultClaim(claim) { myStats.resultClaim = claim; },
+
+        get currentTurn() { return self.turn % 2 ? self.black.player : self.white.player },
+        
         makeMove: function (move) {
             var timeUsed = Date.now() - myStats.startTime;
             myStats.time -= timeUsed;
@@ -234,11 +223,11 @@ Player.prototype.get_reconnection_info = function (callback) {
     if (this.game) {
         // TODO, most of this information should be the same as the start game information
         info['white'] = this.game.isWhite;
-        info['fen'] = this.game.lastMove() ? this.game.lastMove().fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // TODO, eek
+        info['fen'] = this.game.lastMove ? this.game.lastMove.fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // TODO, eek
         info['opponent'] = this.game.opponent.username;
 
         if (this.hasTurn()) {
-            info['move'] = this.game.oppLastMove(); // something is removing this by the time it reaches client if it undefined            
+            info['move'] = this.game.oppLastMove; // something is removing this by the time it reaches client if it undefined            
         }
     }
 

@@ -205,7 +205,7 @@ function registerChessEventsForPlayer(player) {
             player.socket.emit('start', {
                 white: player.game.isWhite,
                 opponent: player.game.opponent.username,
-                time: player.game.time(),
+                time: player.game.time,
                 stats: player.game.opponent.user.chess
             });
         });
@@ -215,7 +215,7 @@ function registerChessEventsForPlayer(player) {
         console.log('move', player.username);
         player.move(json, function (opponent) { // only called if move succeeds
             console.log("sending move from " + player.username + " to " + opponent.username);
-            json['time'] = opponent.game.time(); // TODO, don't like this
+            json['time'] = opponent.game.time; // TODO, don't like this
             // console.log('time', opponent.game.time(), player.game.time());
             opponent.socket.emit('move', json); // TODO, better way to forward?
         });
@@ -223,13 +223,13 @@ function registerChessEventsForPlayer(player) {
 
     player.socket.on('end', function (json) {
         console.log('end', player.username, json);
-        player.game.setResultClaim(json.result); // TODO, move and clean this
+        player.game.resultClaim = json.result; // TODO, move and clean this
 
         player.game.check_for_agreement(function (agreement, change) {
             console.log("agreement", agreement);
             var opponent = player.game.opponent;
-            player.socket.emit('end', {agree: agreement, result: player.game.resultClaim(), elochange: change});
-            opponent.socket.emit('end', {agree: agreement, result: opponent.game.resultClaim(), elochange: -change});
+            player.socket.emit('end', {agree: agreement, result: player.game.resultClaim, elochange: change});
+            opponent.socket.emit('end', {agree: agreement, result: opponent.game.resultClaim, elochange: -change});
         },
         function (player) { // save callback
             player.socket.emit('stats', player.user.chess);
