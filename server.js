@@ -79,7 +79,8 @@ function signup (req, res) {
     });
 };
 
-var fileServer = new static.Server('./public');
+var disableCache = true;
+var fileServer = new static.Server('./public', !disableCache);
 
 var handle = {
     // GET: {
@@ -183,6 +184,7 @@ function registerChessEventsForPlayer(player) {
             var playerStillNotBack = false;
             if (playerStillNotBack) {
                 opponent.socket.emit('end', {agree: true, result: true});
+                // remove from client
             }
         }
     });
@@ -193,23 +195,24 @@ function registerChessEventsForPlayer(player) {
         });
     });
 
-    player.socket.on('message', function (msg) {
-        console.log('message', msg);
-        player.socket.broadcast.emit('message', msg);
-    });
-
     player.socket.on('ready', function () {
-        console.log('ready');
+        console.log('ready', player.username);
         chess.GameManager.ready(player, function () { // callback for acknowledge ready, only called if we don't start game
             player.socket.emit('ready');
         },
-        function (white, black) { // callback for starting game
-            white.socket.emit('start', { white: true, opponent: black.username, time: white.game.time() });
-            black.socket.emit('start', { white: false, opponent: white.username, time: black.game.time() });
+        function (player) { // callback for starting game, called for each player
+            console.log('sending start to ', player.username);
+            player.socket.emit('start', {
+                white: player.game.isWhite,
+                opponent: player.game.opponent.username,
+                time: player.game.time(),
+                stats: player.game.opponent.user.chess
+            });
         });
     });
 
     player.socket.on('move', function (json) {
+        console.log('move', player.username);
         player.move(json, function (opponent) { // only called if move succeeds
             console.log("sending move from " + player.username + " to " + opponent.username);
             json['time'] = opponent.game.time(); // TODO, don't like this

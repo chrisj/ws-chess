@@ -25,8 +25,16 @@ $(document).ready(function() {
       onMouseoverSquare: onMouseoverSquare
     };
 
+    var chessclock;
+
     var board = new ChessBoard('board', cfg);
     var chess;
+
+    if (token) {
+        connectSocket();
+    } else {
+        showLogin();
+    }
 
     function authenticate (url) {
         var form = $('#loginform');
@@ -43,33 +51,12 @@ $(document).ready(function() {
         }).done(function (result) {
             token = result.token;
             sessionStorage.setItem("chesstoken", token);
-            console.log("got token! " + token);
             connectSocket();
         });
 
         usernameField.val('');
         passwordField.val('');
     };
-
-    $('.joingame').click(function() { socket.emit('ready'); });
-
-    $('#loginform').submit(function (e) {
-        e.preventDefault();
-        authenticate('/login');
-        return false; // what does this do?
-    });
-
-    $('#signup').click(function (e) {
-        e.preventDefault();
-        authenticate('/signup')
-        return false; // what does this do?
-    });
-
-    if (token) {
-        connectSocket();
-    } else {
-        // show signup?
-    }
 
     function handleStats(json) {
         json['username'] = playerUsername;
@@ -87,10 +74,10 @@ $(document).ready(function() {
         });
 
         socket.on('reconnection_info', handleReconnection);
-        socket.on('stats', handleStats);
         socket.on('start', handleStart);
         socket.on('move', handleMove);
         socket.on('end', handleEnd);
+        socket.on('stats', handleStats);
 
         socket.on('ready', function () {
             $('.joingame').prop("disabled", true);
@@ -119,6 +106,8 @@ $(document).ready(function() {
     };
 
     function handleReconnection (json) {
+        console.log('got reconnection');
+
         playerUsername = json.username;
 
         if (json.white !== undefined) {
@@ -134,12 +123,18 @@ $(document).ready(function() {
         }
 
         handleStats(json.stats);
+
+        $('#myModal').modal('hide');
+
+        $('.joingame').click(function() {
+            socket.emit('ready'); // is this ok?
+            $(this).toggleClass('active');
+        });
     }
 
     function handleMove(json) {
-        if (json.time) {
-            startClock(json.time);
-        }
+        console.log('move', json);
+        chessclock.switch(json.time);
 
         var move = chess.move({
             from: json.from, // TODO, why does having aisdjfiasdf.from not throw an error here?
@@ -170,28 +165,40 @@ $(document).ready(function() {
 
     function handleStart (json) {
         setColor(json.white);
-        board.position('start');
-        chess = new Chess();
-        startClock(json.time);
 
-
+        $('.joingame').prop("disabled", true);
         $('.joingame').toggleClass('active', false);
         $.get('templates/start_game_modal.mst', function (template) {
             var rendered = Mustache.render(template, {
-                opponent: json.opponent
+                opponent: json.opponent,
+                elo: json.stats.elo
             });
             $('#myModal').html(rendered);
-            $('#myModal').modal('show');
 
-            // TODO, this could be annoying to the player
+            // todo, move this back into timeout? issue when we get a quick move before timeout completes
+            board.position('start');
+            chess = new Chess();
+            chessclock = new ChessClock(json.time, function (white, black) {
+                $('#white_time').html(white.minutes + ':' + (white.seconds < 10 ? '0' : '') + white.seconds);
+                $('#black_time').html(black.minutes + ':' + (black.seconds < 10 ? '0' : '') + black.seconds);
+            });
+            chessclock.start();
+            console.log('chessclock', chessclock);
+
+            // start game after 3 seconds
+            showModalForced();
+            setTimeout(function () {
+                $('#myModal').modal('hide');
+
+                // DEBUG
+                if (foolsMate) {
+                    if (whitePlayer) {
+                        onDrop("f2", "f3");
+                    }
+                }
+
+            }, 3000);
         });
-
-        // DEBUG
-        if (foolsMate) {
-            if (whitePlayer) {
-                onDrop("f2", "f3");
-            }
-        }
     };
 
     function handleEnd (json) {
@@ -230,20 +237,44 @@ $(document).ready(function() {
 
 
 
-    function startClock(time) {
-        $('#clock').countdown(Date.now() + time).on('update.countdown', function(event) {
-        var $this = $(this).html(event.strftime(''
-            + '<span>%M</span> min '
-            + '<span>%S</span> sec'));
+    function showLogin () {
+        // show login modal
+        $.get('templates/login_modal.mst', function (template) {
+            var rendered = Mustache.render(template);
+            $('#myModal').html(rendered);
+
+            $('#signup').click(function (e) {
+                e.preventDefault();
+                authenticate('/signup')
+                return false; // what does this do?
+            });
+
+            $('#loginform').submit(function (e) {
+                e.preventDefault();
+                authenticate('/login');
+                return false; // what does this do?
+            });
+
+            showModalForced();
+
+            $('#myModal').on('shown.bs.modal', function (e) {
+                $('#usernameInput').select(); // doesnt work with ios
+            });
         });
     };
 
 
+    function showModalForced () {
+        $('#myModal').modal({
+            show: true,
+            keyboard: false,
+            backdrop: 'static'
+        });
+    }
 
 
 
-
-
+    // chessboard
     function onDragStart(source, piece, position, orientation) {
         var whitePiece = piece.search(/^b/) === -1;
         if (chess.game_over() || (whitePiece !== whitePlayer) === true) {
@@ -259,7 +290,7 @@ $(document).ready(function() {
                 result = ResultEnum.TIE;
                 console.log("game over stalemate");
             } else {
-                result = (chess.in_checkmate() && !yourTurn) ? 1 : 0;
+                result = (chess.in_checkmate() && !yourTurn) ? ResultEnum.WIN : ResultEnum.LOSE;
                 console.log("game over you ", (chess.in_checkmate() && !yourTurn) ? "won" : "lost");
             }
 
@@ -278,7 +309,7 @@ $(document).ready(function() {
 
         if (move === null) return 'snapback';
         socket.emit('move', {from : source, to: target, fen: chess.fen()});
-        $('#clock').countdown('stop');
+        chessclock.switch();
         checkForEnd(false);
     };
 

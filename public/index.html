@@ -2,34 +2,25 @@
 <html lang="en">
 <head>
     <title>Chess</title>
-    <link rel="stylesheet" href="bootstrap-3.2.0-dist/css/bootstrap.css">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="js/chessboardjs/css/chessboard-0.3.0.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="libs/bootstrap-3.2.0-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="libs/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="libs/chessboardjs/css/chessboard-0.3.0.css">
+    
     <link rel="stylesheet" href="omni.css"> <!-- TODO: it would be nice to include above stylesheets in this -->
 </head>
 <body>
 <div class="container">
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
 
-    <div id="userInfo">
-        <form id="loginform" class="form-inline" role="form">
-            <div class="form-group">
-                <input type="text" name="username" class="form-control" placeholder="Username" />
-            </div>
-            <div class="form-group">
-                <input type="password" name="password" class="form-control" placeholder="Password" />
-            </div>
-            <button type="submit" id="loginButton" class="btn btn-primary">Login</button>
-            <button type="button" id="signup" class="btn btn-success">Signup</button>
-        </form>
-    </div>
+    <div id="userInfo"></div>
 
-<button class="btn btn-success joingame has-spinner">
+    <button class="btn btn-success joingame has-spinner">
         <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
         Join Game
     </button>
 
-    <div id="clock"></div>
+    <div id="chessclock"><div id="white_time"></div><div id="black_time"></div></div>
     <div id="gameInfo"></div>
 
     <div id="board" aria-labelledby="myModalLabel" aria-hidden="true"></div>
@@ -42,21 +33,23 @@
     <ol id="clients" class="list-inline"></ol> -->
 
 
-    Using gameboard.js and chess.js. Source is available at github.com/chrisj/ws-chess
+    Using <a href="http://chessboardjs.com">chessboard.js</a> and <a href="https://github.com/jhlywa/chess.js">chess.js</a>.
+    Source is available at <a href="https://github.com/chrisj/ws-chess">github.com/chrisj/ws-chess</a>
 
 
 
     <!-- SCRIPTS -->
-    <script src="js/mustache.js"></script>
-    <script src="//code.jquery.com/jquery-1.10.1.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
 
-    <script src="bootstrap-3.2.0-dist/js/bootstrap.js"></script>
+    <script src="libs/mustache.js"></script>
+    <script src="libs/jquery-2.1.1.min.js"></script>
 
-    <script src="js/jquery.countdown.min.js"></script>
+    <script src="libs/bootstrap-3.2.0-dist/js/bootstrap.js"></script>
 
-    <script src="js/chessboardjs/js/chessboard-0.3.0.js"></script>
-    <script src="js/chessjs/chess.js"></script>
+    <script src="libs/chessboardjs/js/chessboard-0.3.0.js"></script>
+    <script src="libs/chessjs/chess.js"></script>
+
+    <script src="js/chessclock.js"></script>
     <script src="js/main.js"></script>
 </div>
 </body>

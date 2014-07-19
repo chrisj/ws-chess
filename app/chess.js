@@ -37,7 +37,8 @@ GameManager.prototype.start_game_if_possible = function (callback) {
         white.game = game.game_accessor_for_player(true);
         black.game = game.game_accessor_for_player(false);
 
-        callback(white, black);
+        callback(white);
+        callback(black);
         return true;
     }
 

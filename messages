@@ -1,34 +1,51 @@
 messages
 --------
 
-pong (currently used to confirm initial connection)
-    whatever
-
-debug
-    whatever
-
-disconnect
-    built-in
-
-
-
-
-start
-    white : BOOL
+BOTH
 
 move
     from  : STRING
     to    : STRING
 
-end
-    result : 1, 0.5, 0 (WIN/TIE/LOOSE)
+ready
+    nothing
 
+
+
+SERVER -> CLIENT
+
+reconnection_info
+    username : STRING
+    white    : BOOL
+    fen      : STRING
+    move     : move
+
+start
+    white    : BOOL
+    opponent : STRING
+    time     : NUMBER
+    stats    : stats
 
 stats
-    wins
-    ties
-    losses
-    elo
+    wins   : NUMBER
+    ties   : NUMBER
+    losses : NUMBER
+    elo    : NUMBER
+
+end
+    agree     : BOOL
+    result    : ResultEnum
+    elochange : NUMBER
+
+
+
+CLIENT -> SERVER
+
+
+end
+    result : ResultEnum
+
+reconnect?
 
 
 
