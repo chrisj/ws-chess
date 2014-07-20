@@ -1,1 +1,1 @@
-<span class="username">{{username}}</span>, <span class="stat-title">Wins:</span> {{wins}} <span class="stat-title">Ties:</span> {{ties}} <span class="stat-title">Losses:</span> {{losses}} <span class="stat-title">Elo ranking:</span> {{elo}}
+<span class="username">{{username}}</span>, <span class="stat-title">W/T/L</span> {{wins}}/{{ties}}/{{losses}} <span class="stat-title">Elo:</span> {{elo}}

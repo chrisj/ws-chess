@@ -5,7 +5,7 @@
             <h4 class="modal-title" id="myModalLabel">Login</h4>
         </div>
         <div class="modal-body">
-            {{resulttext}}
+            {{resulttext}} {{elochange}}
             <button type="button" class="btn btn-success joingame center-block">New game</button>
         </div>
     </div>

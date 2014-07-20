@@ -3,17 +3,11 @@
 
 #board {
     width: 400px;
-    // @include center;
+    @include center;
 }
 
 .joingame {
   float: right;
-}
-
-.mycontainer {
-  padding-top: 20px;
-  // width: 500px;
-  @include center;
 }
 
 .stat-title {

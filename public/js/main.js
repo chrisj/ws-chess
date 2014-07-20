@@ -11,7 +11,7 @@ $(document).ready(function() {
 
     var playerUsername;
     var whitePlayer;
-    var foolsMate = true;
+    var foolsMate = false;
 
     var squareClass = '.square-55d63';
     var boardEl = $('#board');
@@ -91,24 +91,30 @@ $(document).ready(function() {
         //     console.log('newsocket', data);
         // }
 
-        // socket.on('clients', function (loc) {
-        //     console.log('clients', loc);
-        //     var cList = $('#clients');
-        //     cList.empty();
-        //     $.each(loc, function (client) {
-        //         var li = $('<li/>')
-        //             // .addClass('ui-menu-item')
-        //             // .attr('role', 'menuitem')
-        //             .text(this)
-        //             .appendTo(cList);
-        //     });
-        // });
+        socket.on('clients', function (loc) {
+            console.log('clients', loc);
+            var cList = $('#clients');
+            cList.empty();
+            $.each(loc, function (client) {
+                var li = $('<li/>')
+                    // .addClass('ui-menu-item')
+                    // .attr('role', 'menuitem')
+                    .text(this)
+                    .appendTo(cList);
+            });
+        });
     };
 
     function handleReconnection (json) {
-        console.log('got reconnection');
+        console.log('got reconnection', json);
 
         playerUsername = json.username;
+        handleStats(json.stats);
+
+        if (json.waiting) {
+            $('.joingame').prop("disabled", true);
+            $('.joingame').toggleClass('active', true);
+        }
 
         if (json.white !== undefined) {
             // TODO, combine this with new game
@@ -121,8 +127,6 @@ $(document).ready(function() {
                 handleMove(json.move);
             }
         }
-
-        handleStats(json.stats);
 
         $('#myModal').modal('hide');
 
@@ -171,7 +175,7 @@ $(document).ready(function() {
         $.get('templates/start_game_modal.mst', function (template) {
             var rendered = Mustache.render(template, {
                 opponent: json.opponent,
-                elo: json.stats.elo
+                elo: json.oppStats.elo
             });
             $('#myModal').html(rendered);
 
@@ -204,6 +208,8 @@ $(document).ready(function() {
     function handleEnd (json) {
         $('.joingame').prop("disabled", false);
 
+        console.log('end', json);
+
         $.get('templates/game_result_modal.mst', function (template) {
 
             var resultText = "You Lost";
@@ -215,7 +221,8 @@ $(document).ready(function() {
             }
 
             var rendered = Mustache.render(template, {
-                resulttext: resultText
+                resulttext: resultText,
+                elochange: json.elochange
             });
             $('#myModal').html(rendered);
 
