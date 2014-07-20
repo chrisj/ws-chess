@@ -143,6 +143,7 @@ function initPlayer(player) {
     player.get_reconnection_info(function (info) {
         player.socket.emit('reconnection_info', info);
     });
+    sio.sockets.emit('clients', Object.keys(clients));
 };
 
 sio.sockets.on('connection', function (socket) {
@@ -151,6 +152,12 @@ sio.sockets.on('connection', function (socket) {
     console.log('connection', username);
     if (clients[username]) {
         var player = clients[username];
+
+        if (player.timeout) {
+            console.log(player.username, 'made it back in time');
+            clearTimeout(player.timeout);
+        }
+
         console.log('disconnecting old socket for', player.username);
         // player.socket.emit('newsocket'); // TODO, not used yet
         player.socket.disconnect();
@@ -161,8 +168,8 @@ sio.sockets.on('connection', function (socket) {
         var player = new chess.Player(username, socket, function (user) {
             if (user) {
                 initPlayer(player);
-                sio.sockets.emit('clients', Object.keys(clients));
             } else {
+                console.log('ERROR123', player, user);
                 // TODO: how can this happen? We already logged in? (Disconnect and log it?)
             }
         });
@@ -176,20 +183,31 @@ function registerChessEventsForPlayer(player) {
         // TODO we should wait a little while for a potential reconnect
         console.log(player.username, 'disconnected');
 
-        // TODO, don't do this now because they could reconnect. Wait 30 seconds?
-        // probably tell the opponent to wait for client.
         if (player.game) {
             player.game.opponent.socket.emit('opponentlostconnection');
-
-            var playerStillNotBack = false;
-            if (playerStillNotBack) {
-                opponent.socket.emit('end', {agree: true, result: true});
-                // remove from client
-            }
         }
+
+        player.timeout = setTimeout(function () {
+            console.log('logout', player.username);
+
+            chess.GameManager.remove_player(player);
+            delete clients[player.username];
+
+            if (player.game) {
+                player.game.forfeit(function (change) {
+                    var opponent = player.game.opponent;
+                    console.log({agree: true, result: opponent.game.resultClaim, elochange: -change});
+                    opponent.socket.emit('end', {agree: true, result: opponent.game.resultClaim, elochange: -change});
+                },
+                function (player) { // save callback
+                    player.socket.emit('stats', player.user.chess);
+                });
+            }
+        }, 10 * 1000);
     });
 
     player.socket.on('reconnect', function () {
+        console.log('reconnect', player.username);
         player.get_reconnection_info(function (info) {
             player.socket.emit('reconnection_info', info);
         });
@@ -206,7 +224,7 @@ function registerChessEventsForPlayer(player) {
                 white: player.game.isWhite,
                 opponent: player.game.opponent.username,
                 time: player.game.time,
-                stats: player.game.opponent.user.chess
+                oppStats: player.game.opponent.user.chess
             });
         });
     });
@@ -217,14 +235,15 @@ function registerChessEventsForPlayer(player) {
             console.log("sending move from " + player.username + " to " + opponent.username);
             json['time'] = opponent.game.time; // TODO, don't like this
             // console.log('time', opponent.game.time(), player.game.time());
-            opponent.socket.emit('move', json); // TODO, better way to forward?
+            opponent.socket.emit('move', json);
         });
     });
 
     player.socket.on('end', function (json) {
-        console.log('end', player.username, json);
+        console.log('end', player.username, player.game.isWhite, json);
         player.game.resultClaim = json.result; // TODO, move and clean this
 
+        // TODO, what if the opponent never responds? timeout
         player.game.check_for_agreement(function (agreement, change) {
             console.log("agreement", agreement);
             var opponent = player.game.opponent;

@@ -75,6 +75,10 @@ Player.prototype.toString = function () {
     return this.username;
 };
 
+Player.prototype.isWaiting = function () {
+    return gm.waiting.indexOf(this) !== -1;
+};
+
 Player.prototype.hasTurn = function () {
     return this.game && this.game.currentTurn === this;
 };
@@ -86,10 +90,6 @@ Player.prototype.move = function (move, callback) {
     } else {
         console.log("not your turn", this.username);
     }
-}
-
-Player.prototype.Q = function () {
-    return Math.pow(10, (this.user.chess.elo / 4000));
 };
 
 Player.prototype.updateElos = function (opponent, result) {
@@ -98,7 +98,7 @@ Player.prototype.updateElos = function (opponent, result) {
     };
 
     var K = 25;
-    var change =  Math.round(K * (result - (Q(this) / (Q(this) + Q(opponent)))));
+    var change = Math.round(K * (result - (Q(this) / (Q(this) + Q(opponent)))));
 
     this.user.chess.elo += change;
     opponent.user.chess.elo -= change;
@@ -169,46 +169,56 @@ Game.prototype.game_accessor_for_player = function (white) {
             self.turn += 1;
         },
         check_for_agreement: function (callback, savecallback) { // TODO, ugly
-            self.check_for_agreement(callback, savecallback);
+            self.check_for_agreement(myStats.player, callback, savecallback);
+        },
+        forfeit: function (callback, savecallback) {
+            self.forfeit(myStats.player, callback, savecallback);
         }
     }
 
     return game_accessor;
 };
 
-Game.prototype.check_for_agreement = function (callback, savecallback) {
-    console.log('check for agreement');
+Game.prototype.common = function (player, callback, savecallback) {
+    var agreement = this.white.resultClaim + this.black.resultClaim === ResultEnum.WIN;
 
+    var change = 0;
+
+    if (agreement) {
+        var opponent = player.game.opponent;
+
+        player.updateStats();
+        opponent.updateStats();
+        change = player.updateElos(opponent, player.game.resultClaim);
+
+        function savePlayer(player) {
+            player.user.save(function (err) {
+                if (err)
+                    throw err;
+                savecallback(player);
+            });
+        };
+
+        savePlayer(player);
+        savePlayer(opponent);
+    }
+
+    callback(agreement, change);
+
+    player.game = undefined;
+    opponent.game = undefined;
+}
+
+Game.prototype.forfeit = function (player, callback, savecallback) {
+    player.game.resultClaim = ResultEnum.LOSE;
+    player.game.opponent.game.resultClaim = ResultEnum.WIN; // uhh
+
+    this.common(player, callback, savecallback);
+}
+
+Game.prototype.check_for_agreement = function (player, callback, savecallback) {
     if (this.white.resultClaim !== undefined && this.black.resultClaim !== undefined) {
-        var agreement = this.white.resultClaim + this.black.resultClaim === ResultEnum.WIN;
-
-        var change = 0;
-
-        if (agreement) {
-            // TODO, clean all this up
-            this.white.player.updateStats();
-            this.black.player.updateStats();
-            change = this.white.player.updateElos(this.black.player, this.white.resultClaim);
-
-            var self = this;
-            this.white.player.user.save(function (err) {
-                if (err)
-                    throw err;
-
-                savecallback(self.white.player);
-            });
-
-            this.black.player.user.save(function (err) {
-                if (err)
-                    throw err;
-
-                savecallback(self.black.player);
-            });
-        }
-
-        callback(agreement, change); // 2 ties = win, loss = 0.
-        this.white.player.game = undefined;
-        this.black.player.game = undefined;
+        this.common(player, callback, savecallback);
     }
 };
 
@@ -217,8 +227,6 @@ Player.prototype.get_reconnection_info = function (callback) {
         username: this.username,
         stats: this.user.chess
     };
-
-    info['waiting'] = gm.waiting.indexOf(this) !== -1;
 
     if (this.game) {
         // TODO, most of this information should be the same as the start game information
@@ -229,6 +237,8 @@ Player.prototype.get_reconnection_info = function (callback) {
         if (this.hasTurn()) {
             info['move'] = this.game.oppLastMove; // something is removing this by the time it reaches client if it undefined            
         }
+    } else {
+        info['waiting'] = this.isWaiting();
     }
 
     console.log('info', info);
