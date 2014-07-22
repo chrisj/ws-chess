@@ -1,11 +1,11 @@
 (function (window) {
     "use strict";
 
-    function ChessClock(time, callback) {
-        this.white = { time: time }
-        this.black = { time: time }
+    function ChessClock(whiteTime, blackTime, whitesTurn, callback) {
+        this.white = { time: whiteTime }
+        this.black = { time: blackTime }
 
-        this.currentTurn = this.white;
+        this.currentTurn = whitesTurn ? this.white : this.black;
 
         this.callback = callback;
     };
@@ -14,6 +14,8 @@
         if (this.interval) {
             return;
         }
+
+        this.callbackTime();
 
         this.lastUpdateTime = Date.now();
 
@@ -27,13 +29,18 @@
         return Math.floor(ms/1000);
     }
 
-    function minutesSeconds(ms) {
-        var sec = seconds(ms);
-        return {
-            minutes: Math.floor(sec / 60),
-            seconds: sec % 60
+    ChessClock.prototype.callbackTime = function () {
+        function minutesSeconds(ms) {
+            var sec = seconds(ms);
+            return {
+                minutes: Math.floor(sec / 60),
+                seconds: sec % 60,
+                totalseconds: sec
+            }
         }
-    }
+
+        this.callback(minutesSeconds(this.white.time), minutesSeconds(this.black.time));
+    };
 
     ChessClock.prototype.update = function () {
         var now = Date.now();
@@ -43,9 +50,10 @@
 
         if (seconds(this.currentTurn.time) < seconds(this.currentTurn.time + timeSpent)) {
             if (this.currentTurn.time < 0) {
-                this.stop();
+                // this.stop();
             }
-            this.callback(minutesSeconds(this.white.time), minutesSeconds(this.black.time));
+
+            this.callbackTime();
         }
     };
 

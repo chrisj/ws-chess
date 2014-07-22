@@ -36,13 +36,13 @@ var mongoose   = require('mongoose');
 mongoose.connect('mongodb://localhost:27017/nodeappdb');
 
 
-function getTokenForUser (user) {
+function getTokenForUser(user) {
     return jwt.sign(user, jwt_secret, { expiresInMinutes: 60 });
 }
 
 var User = require('./app/models/user');
 
-function login (req, res) {
+function login(req, res) {
     var form = new formidable.IncomingForm();
 
     form.parse(req, function (err, fields, files) {
@@ -59,7 +59,7 @@ function login (req, res) {
     });
 };
 
-function signup (req, res) {
+function signup(req, res) {
     parseLogin(response, request, function (err, user) {
         res.writeHead(200, {"Content-Type": "application/json"});
         if (err || user) {
@@ -80,7 +80,7 @@ function signup (req, res) {
 };
 
 var disableCache = true;
-var fileServer = new static.Server('./public', !disableCache);
+var fileServer = new static.Server('./public', { cache: false });
 
 var handle = {
     // GET: {
@@ -140,7 +140,7 @@ var chess = require('./app/chess.js');
 
 function initPlayer(player) {
     registerChessEventsForPlayer(player);
-    player.get_reconnection_info(function (info) {
+    player.getReconnectionInfo(function (info) {
         player.socket.emit('reconnection_info', info);
     });
     sio.sockets.emit('clients', Object.keys(clients));
@@ -190,11 +190,11 @@ function registerChessEventsForPlayer(player) {
         player.timeout = setTimeout(function () {
             console.log('logout', player.username);
 
-            chess.GameManager.remove_player(player);
+            chess.GameManager.removePlayer(player);
             delete clients[player.username];
 
             if (player.game) {
-                player.game.forfeit(function (change) {
+                player.game.forfeit(function (agreement, change) {
                     var opponent = player.game.opponent;
                     console.log({agree: true, result: opponent.game.resultClaim, elochange: -change});
                     opponent.socket.emit('end', {agree: true, result: opponent.game.resultClaim, elochange: -change});
@@ -208,7 +208,7 @@ function registerChessEventsForPlayer(player) {
 
     player.socket.on('reconnect', function () {
         console.log('reconnect', player.username);
-        player.get_reconnection_info(function (info) {
+        player.getReconnectionInfo(function (info) {
             player.socket.emit('reconnection_info', info);
         });
     });
@@ -233,7 +233,7 @@ function registerChessEventsForPlayer(player) {
         console.log('move', player.username);
         player.move(json, function (opponent) { // only called if move succeeds
             console.log("sending move from " + player.username + " to " + opponent.username);
-            json['time'] = opponent.game.time; // TODO, don't like this
+            // json['time'] = opponent.game.time; // TODO, don't like this
             // console.log('time', opponent.game.time(), player.game.time());
             opponent.socket.emit('move', json);
         });
@@ -244,7 +244,7 @@ function registerChessEventsForPlayer(player) {
         player.game.resultClaim = json.result; // TODO, move and clean this
 
         // TODO, what if the opponent never responds? timeout
-        player.game.check_for_agreement(function (agreement, change) {
+        player.game.checkForAgreement(function (agreement, change) {
             console.log("agreement", agreement);
             var opponent = player.game.opponent;
             player.socket.emit('end', {agree: agreement, result: player.game.resultClaim, elochange: change});
@@ -254,4 +254,24 @@ function registerChessEventsForPlayer(player) {
             player.socket.emit('stats', player.user.chess);
         });
     });
+
+    player.socket.on('outoftime', function () {
+        console.log('outoftime', player.username);
+        if (player.game) {
+            console.log('oppTime', player.game.oppTime);
+            if (player.game.oppTime < 0) {
+                var opponent = player.game.opponent;
+                // todo, combine forfeit code
+                opponent.game.forfeit(function (agreement, change) {
+                    var opponent = player.game.opponent;
+                    console.log('change', change);
+                    opponent.socket.emit('end', {agree: true, result: opponent.game.resultClaim, elochange: change});
+                    player.socket.emit('end', {agree: true, result: player.game.resultClaim, elochange: -change});
+                },
+                function (player) { // save callback
+                    player.socket.emit('stats', player.user.chess);
+                });
+            }
+        }
+    })
 };

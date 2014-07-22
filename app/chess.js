@@ -17,14 +17,14 @@ GameManager.prototype.ready = function (player, callbackready, callbackgame) {
         if (this.waiting.indexOf(player) === -1) {
             this.waiting.push(player);            
             
-            if (!this.start_game_if_possible(callbackgame)) {
+            if (!this.startGameIfPossible(callbackgame)) {
                 callbackready();
             }
         }
     }
 }
 
-GameManager.prototype.start_game_if_possible = function (callback) {
+GameManager.prototype.startGameIfPossible = function (callback) {
     if (this.waiting.length > 1) {
 
         // just take first 2 for now
@@ -33,9 +33,9 @@ GameManager.prototype.start_game_if_possible = function (callback) {
         var black = this.waiting[1-random01];
         this.waiting.splice(0, 2);
 
-        var game = new Game(white, black, 5 * 60 * 1000);
-        white.game = game.game_accessor_for_player(true);
-        black.game = game.game_accessor_for_player(false);
+        var game = new Game(white, black, 0.5 * 60 * 1000);
+        white.game = game.GameAccessorForPlayer(true);
+        black.game = game.GameAccessorForPlayer(false);
 
         callback(white);
         callback(black);
@@ -51,7 +51,7 @@ function fastRemove(arr, element) {
     });
 }
 
-GameManager.prototype.remove_player = function (player) {
+GameManager.prototype.removePlayer = function (player) {
     this.waiting = fastRemove(this.waiting, player);
 }
 
@@ -136,7 +136,7 @@ function Game(white, black, time) {
     }
 };
 
-Game.prototype.game_accessor_for_player = function (white) {
+Game.prototype.GameAccessorForPlayer = function (white) {
     var myStats = white ? this.white : this.black;
     var oppStats = white ? this.black : this.white;
 
@@ -145,8 +145,8 @@ Game.prototype.game_accessor_for_player = function (white) {
     var game_accessor = {
         isWhite: white,
         opponent: oppStats.player,
-        get time() { return myStats.time; },
-        get oppTime() { return myStats.oppTime; },
+        get time() { return myStats.time - (myStats.startTime ? (Date.now() - myStats.startTime) : 0); },
+        get oppTime() { return oppStats.time - (oppStats.startTime ? (Date.now() - oppStats.startTime) : 0); },
         get lastMove() { return myStats.lastMove; },
         get oppLastMove() { return oppStats.lastMove },
 
@@ -156,20 +156,22 @@ Game.prototype.game_accessor_for_player = function (white) {
         get currentTurn() { return self.turn % 2 ? self.black.player : self.white.player },
         
         makeMove: function (move) {
-            var timeUsed = Date.now() - myStats.startTime;
+            var now = Date.now();
+            var timeUsed = now - myStats.startTime;
             myStats.time -= timeUsed;
+            myStats.startTime = undefined;
 
             if (myStats.time < 0) {
                 //... return false?
             }
 
             console.log("time remaining", myStats.time, "used", timeUsed);
-            oppStats.startTime = Date.now();
+            oppStats.startTime = now;
             myStats.lastMove = move;
             self.turn += 1;
         },
-        check_for_agreement: function (callback, savecallback) { // TODO, ugly
-            self.check_for_agreement(myStats.player, callback, savecallback);
+        checkForAgreement: function (callback, savecallback) { // TODO, ugly
+            self.checkForAgreement(myStats.player, callback, savecallback);
         },
         forfeit: function (callback, savecallback) {
             self.forfeit(myStats.player, callback, savecallback);
@@ -216,13 +218,13 @@ Game.prototype.forfeit = function (player, callback, savecallback) {
     this.common(player, callback, savecallback);
 }
 
-Game.prototype.check_for_agreement = function (player, callback, savecallback) {
+Game.prototype.checkForAgreement = function (player, callback, savecallback) {
     if (this.white.resultClaim !== undefined && this.black.resultClaim !== undefined) {
         this.common(player, callback, savecallback);
     }
 };
 
-Player.prototype.get_reconnection_info = function (callback) {
+Player.prototype.getReconnectionInfo = function (callback) {
     var info = {
         username: this.username,
         stats: this.user.chess
@@ -233,6 +235,9 @@ Player.prototype.get_reconnection_info = function (callback) {
         info['white'] = this.game.isWhite;
         info['fen'] = this.game.lastMove ? this.game.lastMove.fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // TODO, eek
         info['opponent'] = this.game.opponent.username;
+
+        info['whiteTime'] = this.game.isWhite ? this.game.time : this.game.oppTime;
+        info['blackTime'] = this.game.isWhite ? this.game.oppTime : this.game.time; // this.game.opp.time;
 
         if (this.hasTurn()) {
             info['move'] = this.game.oppLastMove; // something is removing this by the time it reaches client if it undefined            

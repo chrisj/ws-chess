@@ -1,0 +1,28 @@
+IDEAS
+
+chess.js should know nothing about the data format (json). Does that overcomplicate?
+
+
+TODO
+
+fix reconnection logic
+clean up modal
+
+
+disconnect
+logout
+
+clock expiring
+
+
+
+ranking table (separate page)
+
+
+
+
+make UI nice
+
+
+
+allow wait cancel

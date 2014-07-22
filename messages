@@ -28,6 +28,8 @@ reconnection_info
     opponent : STRING
     fen      : STRING
     move     : move
+    whiteTime  : NUMBER
+    blackTime   : NUMBER
 
 start
     white    : BOOL
@@ -55,6 +57,9 @@ end
     result : ResultEnum
 
 reconnect?
+
+outoftime
+    nothing
 
 
 

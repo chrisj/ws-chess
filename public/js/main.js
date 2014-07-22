@@ -106,7 +106,7 @@ $(document).ready(function() {
     };
 
     function handleReconnection (json) {
-        console.log('got reconnection', json);
+        console.log('handleReconnection', json);
 
         playerUsername = json.username;
         handleStats(json.stats);
@@ -117,12 +117,7 @@ $(document).ready(function() {
         }
 
         if (json.white !== undefined) {
-            // TODO, combine this with new game
-            setColor(json.white);
-
-            chess = new Chess(json.fen);
-            board.position(chess.fen());
-
+            handleGame(json);
             if (json.move) {
                 handleMove(json.move);
             }
@@ -136,8 +131,59 @@ $(document).ready(function() {
         });
     }
 
+    function handleGame(json) {
+        setColor(json.white);
+        chess = new Chess(json.fen);
+        board.position(chess.fen());
+
+        console.log('times', json.whiteTime, json.blackTime);
+
+        chessclock = new ChessClock(json.whiteTime, json.blackTime, chess.turn() == 'w', function (white, black) {
+            $('#white_time').html(white.minutes + ':' + (white.seconds < 10 ? '0' : '') + white.seconds);
+            $('#black_time').html(black.minutes + ':' + (black.seconds < 10 ? '0' : '') + black.seconds);
+
+            if ((whitePlayer && black.totalseconds < 0) || (!whitePlayer && white.totalseconds < 0)) {
+                socket.emit('outoftime');
+            }
+        });
+
+        chessclock.start();
+    }
+
+    function handleStart (json) {
+        console.log('handleStart', json);
+
+        json.whiteTime = json.blackTime = json.time;
+
+        handleGame(json);
+
+        $('.joingame').prop("disabled", true);
+        $('.joingame').toggleClass('active', false);
+        $.get('templates/start_game_modal.mst', function (template) {
+            var rendered = Mustache.render(template, {
+                opponent: json.opponent,
+                elo: json.oppStats.elo
+            });
+            $('#myModal').html(rendered);
+
+            // start game after 3 seconds
+            showModalForced();
+            setTimeout(function () {
+                $('#myModal').modal('hide');
+
+                // DEBUG
+                if (foolsMate) {
+                    if (whitePlayer) {
+                        onDrop("f2", "f3");
+                    }
+                }
+
+            }, 3000);
+        });
+    };
+
     function handleMove(json) {
-        console.log('move', json);
+        console.log('handleMove', json);
         chessclock.switch(json.time);
 
         var move = chess.move({
@@ -167,48 +213,12 @@ $(document).ready(function() {
         }
     };
 
-    function handleStart (json) {
-        setColor(json.white);
-
-        $('.joingame').prop("disabled", true);
-        $('.joingame').toggleClass('active', false);
-        $.get('templates/start_game_modal.mst', function (template) {
-            var rendered = Mustache.render(template, {
-                opponent: json.opponent,
-                elo: json.oppStats.elo
-            });
-            $('#myModal').html(rendered);
-
-            // todo, move this back into timeout? issue when we get a quick move before timeout completes
-            board.position('start');
-            chess = new Chess();
-            chessclock = new ChessClock(json.time, function (white, black) {
-                $('#white_time').html(white.minutes + ':' + (white.seconds < 10 ? '0' : '') + white.seconds);
-                $('#black_time').html(black.minutes + ':' + (black.seconds < 10 ? '0' : '') + black.seconds);
-            });
-            chessclock.start();
-            console.log('chessclock', chessclock);
-
-            // start game after 3 seconds
-            showModalForced();
-            setTimeout(function () {
-                $('#myModal').modal('hide');
-
-                // DEBUG
-                if (foolsMate) {
-                    if (whitePlayer) {
-                        onDrop("f2", "f3");
-                    }
-                }
-
-            }, 3000);
-        });
-    };
-
     function handleEnd (json) {
+        console.log('handleEnd', json);
+
         $('.joingame').prop("disabled", false);
 
-        console.log('end', json);
+        chessclock.stop();
 
         $.get('templates/game_result_modal.mst', function (template) {
 
@@ -227,8 +237,11 @@ $(document).ready(function() {
             $('#myModal').html(rendered);
 
             $('.joingame').click(function() {
-                socket.emit('ready'); // is this ok?
                 $('#myModal').modal('hide');
+
+                $('#myModal').on('hidden.bs.modal', function (e) { // bootstrap modal sucks
+                    socket.emit('ready');
+                });
             });
 
             $('#myModal').modal('show');
@@ -236,6 +249,11 @@ $(document).ready(function() {
     };
 
     function setColor(isWhite) {
+        var myTimeDiv = isWhite ? $('#white_time') : $('#black_time');
+        var oppTimeDiv = isWhite ? $('#black_time') : $('#white_time');
+        myTimeDiv.addClass('mytime');
+        oppTimeDiv.removeClass('mytime');
+
         whitePlayer = isWhite;
         board.orientation(isWhite ? 'white' : 'black');
     };
@@ -270,14 +288,14 @@ $(document).ready(function() {
         });
     };
 
-
+    // todo, this doesn't seem to be working anymore? or at least on chrome?
     function showModalForced () {
         $('#myModal').modal({
             show: true,
             keyboard: false,
             backdrop: 'static'
         });
-    }
+    };
 
 
 
@@ -293,7 +311,7 @@ $(document).ready(function() {
         if (chess.game_over()) {
             console.log("game over");
             var result;
-            if (chess.in_stalemate()) {
+            if (chess.in_stalemate()) { // todo, is this enough? what about in_draw()
                 result = ResultEnum.TIE;
                 console.log("game over stalemate");
             } else {
