@@ -37,7 +37,7 @@ mongoose.connect('mongodb://localhost:27017/nodeappdb');
 
 
 function getTokenForUser(user) {
-    return jwt.sign(user, jwt_secret, { expiresInMinutes: 60 });
+    return jwt.sign({ username: user.local.username }, jwt_secret, { expiresInMinutes: 60 });
 }
 
 var User = require('./app/models/user');
@@ -80,7 +80,7 @@ function signup(req, res) {
 };
 
 var disableCache = true;
-var fileServer = new static.Server('./public', { cache: false });
+var fileServer = new static.Server(__dirname + "/public", { cache: false });
 
 var handle = {
     // GET: {
@@ -100,7 +100,7 @@ function route(handle, pathname, req, res) {
             // probably move under "/static"
             fileServer.serve(req, res, function (err, result) {
                 if (err) {
-                    console.log("No request handler or file found for " + pathname);
+                    console.log("No request handler or file found for " + pathname, err);
                     res.writeHead(404, {"Content-Type": "text/plain"});
                     res.end();
                 }
@@ -147,7 +147,7 @@ function initPlayer(player) {
 };
 
 sio.sockets.on('connection', function (socket) {
-    var username = socket.decoded_token.local.username;
+    var username = socket.decoded_token.username;
 
     console.log('connection', username);
     if (clients[username]) {
