@@ -49,9 +49,14 @@ $(document).ready(function() {
             },
             url: url
         }).done(function (result) {
+            console.log('token', token);
             token = result.token;
-            sessionStorage.setItem("chesstoken", token);
-            connectSocket();
+            if (token) {
+                sessionStorage.setItem("chesstoken", token);
+                connectSocket();
+            } else {
+                console.log('invalid login');
+            }
         });
 
         usernameField.val('');
@@ -67,40 +72,55 @@ $(document).ready(function() {
         });
     };
 
+    function handleLogout () {
+        sessionStorage.removeItem("chesstoken");
+        $('#userInfo').html('');
+        $('#topBar').css('visibility', 'hidden');
+        $('#clients').empty();
+        showLogin();
+    }
+
     function connectSocket () {
         socket = io.connect('?token=' + token, {
             'forceNew': true,
             'reconnection': false
         });
 
-        socket.on('reconnection_info', handleReconnection);
-        socket.on('start', handleStart);
-        socket.on('move', handleMove);
-        socket.on('end', handleEnd);
-        socket.on('stats', handleStats);
-
-        socket.on('ready', function () {
-            $('.joingame').prop("disabled", true);
+        socket.on('error', function (data) {
+            console.log('connection failed', data);
+            handleLogout();
         });
 
-        // socket.on('disconnect', function (data) {
-        //     console.log('disconnected', data);
-        // });
+        socket.on('connect', function () {
+            socket.on('reconnection_info', handleReconnection);
+            socket.on('start', handleStart);
+            socket.on('move', handleMove);
+            socket.on('end', handleEnd);
+            socket.on('stats', handleStats);
+            socket.on('newsocket', function () {
+                console.log('You have logged in from another window');
+                handleLogout();
+            });
 
-        // socket.on('newsocket'), function (data) {
-        //     console.log('newsocket', data);
-        // }
+            // socket.on('disconnect', function (data) {
+            //     console.log('disconnected', data);
+            // });
 
-        socket.on('clients', function (loc) {
-            console.log('clients', loc);
-            var cList = $('#clients');
-            cList.empty();
-            $.each(loc, function (client) {
-                var li = $('<li/>')
-                    // .addClass('ui-menu-item')
-                    // .attr('role', 'menuitem')
-                    .text(this)
-                    .appendTo(cList);
+            // socket.on('newsocket'), function (data) {
+            //     console.log('newsocket', data);
+            // }
+
+            socket.on('clients', function (loc) {
+                console.log('clients', loc);
+                var cList = $('#clients');
+                cList.empty();
+                $.each(loc, function (client) {
+                    var li = $('<li/>')
+                        // .addClass('ui-menu-item')
+                        // .attr('role', 'menuitem')
+                        .text(this)
+                        .appendTo(cList);
+                });
             });
         });
     };
@@ -110,6 +130,8 @@ $(document).ready(function() {
 
         playerUsername = json.username;
         handleStats(json.stats);
+
+        $('#topBar').css('visibility', 'visible');
 
         if (json.waiting) {
             $('.joingame').prop("disabled", true);
@@ -126,8 +148,18 @@ $(document).ready(function() {
         $('#myModal').modal('hide');
 
         $('.joingame').click(function() {
-            socket.emit('ready'); // is this ok?
-            $(this).toggleClass('active');
+            var self = this;
+            socket.emit('ready', function (data) {
+                $('.joingame').prop("disabled", true);
+                $(self).toggleClass('active');
+            });
+        });
+
+        $('#logoutButton').click(function () {
+            socket.emit('logout', function (data) {
+                console.log('data', data);
+                handleLogout();
+            });
         });
     }
 
@@ -333,7 +365,9 @@ $(document).ready(function() {
         });
 
         if (move === null) return 'snapback';
-        socket.emit('move', {from : source, to: target, fen: chess.fen()});
+        socket.emit('move', {from : source, to: target, fen: chess.fen()}, function (data) {
+            console.log('move succeded', data);
+        });
         chessclock.switch();
         checkForEnd(false);
     };

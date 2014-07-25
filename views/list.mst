@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>PawnChain.net leaderboards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="libs/bootstrap-3.2.0-dist/css/bootstrap.css">
+</head>
+<body>
+<div class="container">
+<ul>
+{{#users}}
+<li>
+{{local.username}}
+{{chess.elo}}
+</li>
+{{/users}}
+</ul>
+</div>
+</body>
+</html>

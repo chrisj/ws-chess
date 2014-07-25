@@ -6,6 +6,24 @@
     @include center;
 }
 
+#topBar {
+  padding: 10px 0;
+  visibility:hidden;
+}
+
+#userContainer {
+  float: left;
+}
+
+#userInfo {
+    vertical-align: middle;
+    display: inline-block;
+}
+
+#logoutButton {
+  margin-left: 10px;
+}
+
 .mytime {
   font-weight: bold;
 }

@@ -2,7 +2,7 @@
   "name": "ws-chess",
   "main": "server.js",
   "dependencies" : {
-    "mongoose" : "~3.8.1",          
+    "mongoose" : "latest",
     "bcrypt-nodejs" : "latest",
 
     "socket.io" : "latest",
@@ -13,7 +13,9 @@
     "node-static" : "latest",
     "formidable" : "latest",
 
-    "morgan" : "latest"
+    "morgan" : "latest",
+
+    "mustache" : "latest"
   },
 
   "repository" : {

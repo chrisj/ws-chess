@@ -2,7 +2,7 @@
     <form id="loginform">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title" id="myModalLabel">Login to PawnChain.net</h4>
+                <h4 class="modal-title" id="myModalLabel">Log in to PawnChain.net</h4>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -15,8 +15,8 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="submit" id="loginButton" class="btn btn-primary btn-lg">Login</button>
-                <button type="button" id="signup" class="btn btn-success btn-lg">Signup</button>
+                <button type="submit" id="loginButton" class="btn btn-primary btn-lg">Log In</button>
+                <button type="button" id="signup" class="btn btn-success btn-lg">Sign Up</button>
             </div>
         </div>
     </form>
