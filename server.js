@@ -4,9 +4,9 @@ var sass = require('node-sass');
 var sassstats = {};
 
 sass.render({
-    file: './public/css/main.scss',
+    file: __dirname + '/public/css/main.scss',
     success: function (css) {
-        fs.writeFile('./public/main.css', css, function (err) {
+        fs.writeFile(__dirname + '/public/main.css', css, function (err) {
             if (err) {
                 console.log(err)
             } else {
@@ -19,7 +19,7 @@ sass.render({
 });
 
 // preload template
-var listTemplate = fs.readFileSync('./views/list.mst', {encoding: 'utf8'});
+var listTemplate = fs.readFileSync(__dirname + '/views/list.mst', {encoding: 'utf8'});
 
 
 // http
