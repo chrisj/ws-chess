@@ -255,7 +255,8 @@ function registerChessEventsForPlayer(player) {
                 white: player.game.isWhite,
                 opponent: player.game.opponent.username,
                 time: player.game.time,
-                oppStats: player.game.opponent.user.chess
+                oppStats: player.game.opponent.user.chess,
+                fen: '8/8/rnbqk3/ppppp3/8/8/PPPPP3/RNBQK3 w KQkq - 0 1' // wow
             });
         });
     });

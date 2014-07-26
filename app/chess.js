@@ -33,7 +33,7 @@ GameManager.prototype.startGameIfPossible = function (callback) {
         var black = this.waiting[1-random01];
         this.waiting.splice(0, 2);
 
-        var game = new Game(white, black, 0.5 * 60 * 1000);
+        var game = new Game(white, black, 4 * 60 * 1000);
         white.game = game.GameAccessorForPlayer(true);
         black.game = game.GameAccessorForPlayer(false);
 
@@ -233,7 +233,7 @@ Player.prototype.getReconnectionInfo = function (callback) {
     if (this.game) {
         // TODO, most of this information should be the same as the start game information
         info['white'] = this.game.isWhite;
-        info['fen'] = this.game.lastMove ? this.game.lastMove.fen : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // TODO, eek
+        info['fen'] = this.game.lastMove ? this.game.lastMove.fen : '8/8/rnbqk3/ppppp3/8/8/PPPPP3/RNBQK3 w KQkq - 0 1'; // TODO, eek
         info['opponent'] = this.game.opponent.username;
 
         info['whiteTime'] = this.game.isWhite ? this.game.time : this.game.oppTime;
