@@ -5,24 +5,11 @@ chess.js should know nothing about the data format (json). Does that overcomplic
 
 TODO
 
-fix reconnection logic
-clean up modal
+add chess attack
 
 
-disconnect
-logout
-
-clock expiring
+improve ranking table
 
 
-
-ranking table (separate page)
-
-
-
-
-make UI nice
-
-
-
+perfect the modal
 allow wait cancel

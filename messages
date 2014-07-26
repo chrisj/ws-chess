@@ -48,10 +48,17 @@ end
     result    : ResultEnum
     elochange : NUMBER
 
+clients
+    list of Strings
+
+
 
 
 CLIENT -> SERVER
 ----------------
+
+logout
+    callback on logout success
 
 end
     result : ResultEnum
