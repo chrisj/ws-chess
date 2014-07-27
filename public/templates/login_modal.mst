@@ -5,6 +5,7 @@
                 <h4 class="modal-title" id="myModalLabel">Log in to PawnChain.net</h4>
             </div>
             <div class="modal-body">
+                <div id="loginalert" class="alert alert-danger" role="alert" style="display: none;"></div>
                 <div class="form-group">
                     <label>Username</label>
                     <input type="text" class="form-control" name="username" id="usernameInput" autocapitalize="off" autocorrect="off">

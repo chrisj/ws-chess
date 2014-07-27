@@ -56,11 +56,11 @@ function login(req, res) {
     form.parse(req, function (err, fields, files) {
         User.findOne({'local.username' : fields.username}, function (err, user) {
             res.writeHead(200, {"Content-Type": "application/json"});
-            if (err || !user) {
+            if (err || !user || !user.validPassword(fields.password)) {
                 console.log('err', err);
                 res.end(JSON.stringify({token: false}));
                 // return 
-            } else if (user.validPassword(fields.password)) {
+            } else {
                 res.end(JSON.stringify({token: getTokenForUser(user)}));
             }
         });
@@ -260,6 +260,14 @@ function registerChessEventsForPlayer(player) {
             });
         });
     });
+
+    player.socket.on('cancel', function (callback) {
+        console.log('cancel', player.username);
+
+        chess.GameManager.cancel(player, function () {
+            // todo
+        });
+    })
 
     player.socket.on('move', function (json, callback) {
         console.log('move', player.username);

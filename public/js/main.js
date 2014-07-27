@@ -36,7 +36,7 @@ $(document).ready(function() {
         showLogin();
     }
 
-    function authenticate (url) {
+    function authenticate (url, errorcallback) {
         var form = $('#loginform');
         var usernameField = form.find('input[name="username"]');
         var passwordField = form.find('input[name="password"]');
@@ -49,13 +49,14 @@ $(document).ready(function() {
             },
             url: url
         }).done(function (result) {
-            console.log('token', token);
+            console.log('authenticate result', result)
             token = result.token;
+            console.log('token', token);
             if (token) {
                 sessionStorage.setItem("chesstoken", token);
                 connectSocket();
             } else {
-                console.log('invalid login');
+                errorcallback();
             }
         });
 
@@ -302,13 +303,20 @@ $(document).ready(function() {
 
             $('#signup').click(function (e) {
                 e.preventDefault();
-                authenticate('/signup')
+                authenticate('/signup', function () {
+                    $('#loginalert').html('A user with that name already exists.');
+                    $('#loginalert').show();
+                });
                 return false; // what does this do?
             });
 
             $('#loginform').submit(function (e) {
                 e.preventDefault();
-                authenticate('/login');
+                console.log('loginForm submit');
+                authenticate('/login', function () {
+                    $('#loginalert').html('Invalid username/password.');
+                    $('#loginalert').show();
+                });
                 return false; // what does this do?
             });
 

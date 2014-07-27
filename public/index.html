@@ -13,18 +13,23 @@
 <div class="container">
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
 
-    <div id="topBar">
-        <div id="userContainer">
-            <div id="userInfo"></div>
-            <button id="logoutButton" class="btn btn-danger">Log Out</button>
-        </div>
+    <nav id="topBar" class="navbar navbar-default" role="navigation">
+        <div class="container-fluid">
+<!--             <div class="navbar-header">
+                <a class="navbar-brand" href="#">PawnChain.net</a>
+            </div> -->
 
-        <button class="btn btn-success joingame has-spinner">
-            <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
-            Join Game
-        </button>
-        <div style="clear: both;"></div>
-    </div>
+            <div id="userContainer">
+                <div id="userInfo"></div>
+                <button id="logoutButton" class="btn btn-danger navbar-btn">Log Out</button>
+            </div>
+
+            <button class="btn btn-success navbar-btn joingame has-spinner">
+                <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
+                Join Game
+            </button>
+        </div>
+    </nav>
 
     <div id="chessclock"><div id="white_time"></div><div id="black_time"></div></div>
     <div id="gameInfo"></div>
