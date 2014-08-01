@@ -59,10 +59,10 @@
 
     ChessClock.prototype.switch = function (time) {
         this.stop();
-        this.currentTurn = (this.currentTurn == this.white) ? this.black : this.white;
         if (time) {
             this.currentTurn.time = time;
         }
+        this.currentTurn = (this.currentTurn == this.white) ? this.black : this.white;
         this.start();
     }
 

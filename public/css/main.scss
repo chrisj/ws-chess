@@ -1,62 +1,29 @@
 @import 'login';
 @import 'board-ext';
+@import 'topbar';
+
+.only-visible-if-logged-in, .only-visible-if-in-game {
+  visibility: hidden;
+}
+
+.only-display-if-logged-in, .only-display-if-in-game {
+  display: none;
+}
 
 #board {
     width: 400px;
     @include center;
 }
 
-#topBar {
-  visibility:hidden;
+#white_time {
+
 }
 
-#userContainer {
-  float: left;
-}
-
-#userInfo {
-    vertical-align: middle;
-    display: inline-block;
-}
-
-#logoutButton {
-  margin-left: 10px;
+#black_time {
+  background-color: black;
+  color: white;
 }
 
 .mytime {
   font-weight: bold;
-}
-
-.joingame {
-  float: right;
-}
-
-.stat-title {
-    font-weight: bold;
-}
-
-.username {
-    color: green;
-    font-size: 12pt;
-}
-
-/* http://stackoverflow.com/questions/15982233/spinner-for-twitter-bootstrap-btn */
-.spinner {
-  display: inline-block;
-  opacity: 0;
-  max-width: 0;
-
-  -webkit-transition: opacity 0.25s, max-width 0.45s; 
-  -moz-transition: opacity 0.25s, max-width 0.45s;
-  -o-transition: opacity 0.25s, max-width 0.45s;
-  transition: opacity 0.25s, max-width 0.45s; /* Duration fixed since we animate additional hidden width */
-}
-
-.has-spinner.active {
-  cursor:progress;
-}
-
-.has-spinner.active .spinner {
-  opacity: 1;
-  max-width: 50px; /* More than it will ever come, notice that this affects on animation duration */
 }

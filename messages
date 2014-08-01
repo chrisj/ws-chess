@@ -1,55 +1,85 @@
 messages
 --------
 
+common
+----------
+
+game {
+    white: BOOL,
+    opponent: STRING,
+    mode: GameModeEnum,
+
+    // for start
+    time: NUMBER,
+    oppStats: stats
+
+    // for reconnection
+    move: move,
+    clock: clock
+}
+
+clock {
+    whiteTime
+    blackTime
+}
+
+stats {
+    wins   : NUMBER,
+    ties   : NUMBER,
+    losses : NUMBER,
+    elo    : NUMBER
+}
+
+
+
 BOTH
 ----
 
-move
-    from  : STRING
-    to    : STRING
+move {
+    from  : STRING,
+    to    : STRING,
+    fen : STRING
+}
 
-ready
-    nothing
+
+ready  {
+    mode: GameModeEnum
+}
 
 
 
 SERVER -> CLIENT
 ----------------
 
-reconnection_info
-    username : STRING
-    stats : stats
+
+reconnection_info {
+    username : STRING,
+    stats : stats,
 
     // if not in game
-    waiting  : BOOL
+    waiting : BOOL,
 
     // if in game
-    white    : BOOL
-    opponent : STRING
-    fen      : STRING
-    move     : move
-    whiteTime  : NUMBER
-    blackTime   : NUMBER
+    game : game (with move and clock)
+}
 
-start
-    white    : BOOL
-    opponent : STRING
-    time     : NUMBER
-    oppStats : stats
+start : game
 
-stats
-    wins   : NUMBER
-    ties   : NUMBER
-    losses : NUMBER
-    elo    : NUMBER
+stats : stats
 
-end
-    agree     : BOOL
-    result    : ResultEnum
+end {
+    agree     : BOOL,
+    result    : ResultEnum,
     elochange : NUMBER
+}
 
-clients
-    list of Strings
+clients : list of STRING
+
+
+move callback {
+    whiteTime: NUMBER,
+    blackTime: NUMBER
+}
 
 
 
@@ -60,13 +90,13 @@ CLIENT -> SERVER
 logout
     callback on logout success
 
-end
+end {
     result : ResultEnum
+}
 
-reconnect?
+// reconnect? (todo)
 
 outoftime
-    nothing
 
 
 

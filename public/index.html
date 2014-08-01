@@ -13,7 +13,7 @@
 <div class="container">
     <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
 
-    <nav id="topBar" class="navbar navbar-default" role="navigation">
+    <nav id="topBar" class="only-visible-if-logged-in navbar navbar-default" role="navigation">
         <div class="container-fluid">
 <!--             <div class="navbar-header">
                 <a class="navbar-brand" href="#">PawnChain.net</a>
@@ -24,23 +24,33 @@
                 <button id="logoutButton" class="btn btn-danger navbar-btn">Log Out</button>
             </div>
 
-            <button class="btn btn-success navbar-btn joingame has-spinner">
+            <button id="joinPractice" class="btn btn btn-warning navbar-btn has-spinner">
+                <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
+                Practice
+            </button>
+
+            <button id="joinGame" class="btn btn-success navbar-btn has-spinner">
                 <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
                 Join Game
             </button>
         </div>
     </nav>
 
-    <div id="chessclock"><div id="white_time"></div><div id="black_time"></div></div>
-    <div id="gameInfo"></div>
+    <div id="chessclock" class="only-display-if-in-game"><span id="white_time"></span> <i class="fa fa-clock-o"></i> <span id="black_time"></span></div>
     <div id="board"></div>
-    
-<!--     <div id="log_container">
-        <ol id="log"></ol>
-        <input id="textinput" class="boxsizingBorder" placeholder=">"></textarea>
-    </div> -->
 
-    Users online:<ol id="clients" class="list-inline"></ol>
+    <span class="only-visible-if-logged-in">
+        Users online:<ol id="clients" class="list-inline"></ol>
+    </span>
+
+
+    <div class="only-display-if-logged-in">
+    You are logged in.
+    </div>
+
+    <div class="only-display-if-logged-out">
+    You are logged out.
+    </div>
 
 
     Using <a href="http://chessboardjs.com">chessboard.js</a> and <a href="https://github.com/jhlywa/chess.js">chess.js</a>.
@@ -60,6 +70,7 @@
     <script src="libs/chessjs/chess.js"></script>
 
     <script src="js/chessclock.js"></script>
+    <script src="js/shared.js"></script>
     <script src="js/main.js"></script>
 </div>
 </body>

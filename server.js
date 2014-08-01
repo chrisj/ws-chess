@@ -32,6 +32,7 @@ var static     = require('node-static');
 var mustache   = require('mustache');
 
 var port       = process.env.PORT || 8888;
+
 var mongoose   = require('mongoose');
 
 var dbOpenTime = Date.now();
@@ -188,13 +189,8 @@ sio.sockets.on('connection', function (socket) {
 
         initPlayer(player);
     } else { // new client
-        var player = new chess.Player(username, socket, function (user) {
-            if (user) {
-                initPlayer(player);
-            } else {
-                console.log('ERROR123', player, user);
-                // TODO: how can this happen? We already logged in? (Disconnect and log it?)
-            }
+        var player = new chess.Player(username, socket, function () {
+            initPlayer(player);
         });
 
         clients[username] = player; 
@@ -213,9 +209,9 @@ function logout(player) {
 
     if (player.game) {
         player.game.forfeit(function (agreement, change) {
-            var opponent = player.game.opponent;
-            console.log({agree: true, result: opponent.game.resultClaim, elochange: -change});
-            opponent.socket.emit('end', {agree: true, result: opponent.game.resultClaim, elochange: -change});
+            var opponent = player.game.oppPersp.player;
+            console.log({agree: true, result: opponent.game.myPersp.resultClaim, elochange: -change});
+            opponent.socket.emit('end', {agree: true, result: opponent.game.myPersp.resultClaim, elochange: -change});
         },
         function (player) { // save callback
             player.socket.emit('stats', player.user.chess);
@@ -227,7 +223,7 @@ function registerChessEventsForPlayer(player) {
     player.socket.on('disconnect', function () {
         console.log(player.username, 'disconnect');
         // if (player.game) {
-        //     player.game.opponent.socket.emit('opponentlostconnection'); // todo not using this, could be annoying
+        //     player.game.oppPersp.player.socket.emit('opponentlostconnection'); // todo not using this, could be annoying
         // }
         player.timeout = setTimeout(function () { logout(player); }, 10 * 1000);
     });
@@ -244,54 +240,51 @@ function registerChessEventsForPlayer(player) {
         });
     });
 
-    player.socket.on('ready', function (callback) {
-        console.log('ready', player.username);
-        chess.GameManager.ready(player, function () { // callback for acknowledge ready, only called if we don't start game
-            callback();
+    player.socket.on('ready', function (json, callback) {
+        console.log('ready', player.username, json);
+        chess.GameManager.ready(player, json, function () { // callback for acknowledge ready, only called if we don't start game
+            console.log('callback');
+            if (typeof(callback) == "function") { // is this completely safe?
+                callback();
+            }
         },
-        function (player) { // callback for starting game, called for each player
+        function (player, startInfo) { // callback for starting game, called for each player
             console.log('sending start to ', player.username);
-            player.socket.emit('start', {
-                white: player.game.isWhite,
-                opponent: player.game.opponent.username,
-                time: player.game.time,
-                oppStats: player.game.opponent.user.chess,
-                fen: '8/8/rnbqk3/ppppp3/8/8/PPPPP3/RNBQK3 w KQkq - 0 1' // wow
-            });
+            player.socket.emit('start', startInfo);
         });
     });
 
     player.socket.on('cancel', function (callback) {
         console.log('cancel', player.username);
-
-        chess.GameManager.cancel(player, function () {
-            // todo
-        });
-    })
+        chess.GameManager.removePlayer(player);
+        callback();
+    });
 
     player.socket.on('move', function (json, callback) {
         console.log('move', player.username);
         player.move(json, function (opponent) { // only called if move succeeds
+            var timeRemaining = player.game.myPersp.time;
+
             console.log("sending move from " + player.username + " to " + opponent.username);
-            // json['time'] = opponent.game.time; // TODO, don't like this
+            json['oppTime'] = timeRemaining; // TODO, don't like this
             // console.log('time', opponent.game.time(), player.game.time());
             opponent.socket.emit('move', json);
-            callback('ok');
+            callback({ time: timeRemaining });
         });
     });
 
     player.socket.on('end', function (json) {
-        console.log('end', player.username, player.game.isWhite, json);
-        player.game.resultClaim = json.result; // TODO, move and clean this
+        console.log('end', player.username, player.game.myPersp.isWhite, json);
+        player.game.myPersp.resultClaim = json.result; // TODO, move and clean this
 
         // TODO, what if the opponent never responds? send message to opponent to let them know their opponenet thinks the game is over 
-        player.game.opponent.socket.emit('oppEnd');
+        // player.game.oppPersp.player.socket.emit('oppEnd');
 
-        player.game.checkForAgreement(function (agreement, change) {
+        player.game.endGameIfAgreement(function (agreement, change) {
             console.log("agreement", agreement);
-            var opponent = player.game.opponent;
-            player.socket.emit('end', {agree: agreement, result: player.game.resultClaim, elochange: change});
-            opponent.socket.emit('end', {agree: agreement, result: opponent.game.resultClaim, elochange: -change});
+            var opponent = player.game.oppPersp.player;
+            player.socket.emit('end', {agree: agreement, result: player.game.myPersp.resultClaim, elochange: change});
+            opponent.socket.emit('end', {agree: agreement, result: opponent.game.myPersp.resultClaim, elochange: -change});
         },
         function (player) { // save callback
             player.socket.emit('stats', player.user.chess);
@@ -301,15 +294,15 @@ function registerChessEventsForPlayer(player) {
     player.socket.on('outoftime', function () {
         console.log('outoftime', player.username);
         if (player.game) {
-            console.log('oppTime', player.game.oppTime);
-            if (player.game.oppTime < 0) {
-                var opponent = player.game.opponent;
+            console.log('oppTime', player.game.oppPersp.currentTime());
+            if (player.game.oppPersp.currentTime() < 0) {
+                var opponent = player.game.oppPersp.player;
                 // todo, combine forfeit code
                 opponent.game.forfeit(function (agreement, change) {
-                    var opponent = player.game.opponent;
+                    var opponent = player.game.oppPersp.player;
                     console.log('change', change);
-                    opponent.socket.emit('end', {agree: true, result: opponent.game.resultClaim, elochange: change});
-                    player.socket.emit('end', {agree: true, result: player.game.resultClaim, elochange: -change});
+                    opponent.socket.emit('end', {agree: true, result: opponent.game.myPersp.resultClaim, elochange: change});
+                    player.socket.emit('end', {agree: true, result: player.game.myPersp.resultClaim, elochange: -change});
                 },
                 function (player) { // save callback
                     player.socket.emit('stats', player.user.chess);

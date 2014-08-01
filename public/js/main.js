@@ -1,10 +1,17 @@
 $(document).ready(function() {
+    // TODO, use shared.js
+    var GameModeEnum = {
+        STANDARD: 0,
+        CHESSATTACK: 1
+    }
 
     var ResultEnum = {
         LOSE: 0,
         TIE: 0.5,
         WIN: 1
     }
+
+
 
     var token = sessionStorage.getItem("chesstoken");
     var socket;
@@ -76,7 +83,10 @@ $(document).ready(function() {
     function handleLogout () {
         sessionStorage.removeItem("chesstoken");
         $('#userInfo').html('');
-        $('#topBar').css('visibility', 'hidden');
+        $('.only-visible-if-logged-in').css('visibility', 'hidden');
+        $('.only-visible-if-logged-out').css('visibility', 'visible');
+        $('.only-display-if-logged-in').hide();
+        $('.only-display-if-logged-out').show();
         $('#clients').empty();
         showLogin();
     }
@@ -107,10 +117,6 @@ $(document).ready(function() {
             //     console.log('disconnected', data);
             // });
 
-            // socket.on('newsocket'), function (data) {
-            //     console.log('newsocket', data);
-            // }
-
             socket.on('clients', function (loc) {
                 console.log('clients', loc);
                 var cList = $('#clients');
@@ -126,34 +132,43 @@ $(document).ready(function() {
         });
     };
 
+    function ready(mode, button) {
+        socket.emit('ready', { mode: mode }, function (data) {
+            $('#joinGame').prop("disabled", true);
+            $('#joinPractice').prop("disabled", true);
+            $(button).toggleClass('active', true);
+        });
+    }
+
     function handleReconnection (json) {
         console.log('handleReconnection', json);
 
         playerUsername = json.username;
         handleStats(json.stats);
 
-        $('#topBar').css('visibility', 'visible');
+        console.log('json.waiting', json.waiting);
 
-        if (json.waiting) {
-            $('.joingame').prop("disabled", true);
-            $('.joingame').toggleClass('active', true);
+        if (json.waiting !== false) {
+
+            var button = json.waiting === GameModeEnum.CHESSATTACK ? $('#joinPractice') : $('#joinGame');
+
+            $('#joinGame').prop("disabled", true);
+            $('#joinPractice').prop("disabled", true);
+            button.toggleClass('active', true);
         }
 
-        if (json.white !== undefined) {
-            handleGame(json);
-            if (json.move) {
-                handleMove(json.move);
-            }
+        if (json.game) {
+            handleGame(json.game);
         }
 
         $('#myModal').modal('hide');
 
-        $('.joingame').click(function() {
-            var self = this;
-            socket.emit('ready', function (data) {
-                $('.joingame').prop("disabled", true);
-                $(self).toggleClass('active');
-            });
+        $('#joinGame').click(function () {
+            ready(GameModeEnum.STANDARD, this);
+        });
+
+        $('#joinPractice').click(function () {
+            ready(GameModeEnum.CHESSATTACK, this);
         });
 
         $('#logoutButton').click(function () {
@@ -162,16 +177,20 @@ $(document).ready(function() {
                 handleLogout();
             });
         });
-    }
+
+        $('.only-visible-if-logged-out').css('visibility', 'hidden');
+        $('.only-visible-if-logged-in').css('visibility', 'visible');
+
+        $('.only-display-if-logged-out').hide();
+        $('.only-display-if-logged-in').show();
+    };
 
     function handleGame(json) {
         setColor(json.white);
-        chess = new Chess(json.fen);
+        chess = new Chess(json.fen, { mode: json.mode === GameModeEnum.CHESSATTACK ? 'chessattack' : null });
         board.position(chess.fen());
 
-        console.log('times', json.whiteTime, json.blackTime);
-
-        chessclock = new ChessClock(json.whiteTime, json.blackTime, chess.turn() == 'w', function (white, black) {
+        chessclock = new ChessClock(json.whiteTime, json.blackTime, chess.turn() === 'w', function (white, black) {
             $('#white_time').html(white.minutes + ':' + (white.seconds < 10 ? '0' : '') + white.seconds);
             $('#black_time').html(black.minutes + ':' + (black.seconds < 10 ? '0' : '') + black.seconds);
 
@@ -181,7 +200,14 @@ $(document).ready(function() {
         });
 
         chessclock.start();
-    }
+
+        if (json.game) {
+            handleMove(json.move);
+        }
+
+        $('.only-visible-if-in-game').css('visibility', 'visible');
+        $('.only-display-if-in-game').show();
+    };
 
     function handleStart (json) {
         console.log('handleStart', json);
@@ -217,7 +243,7 @@ $(document).ready(function() {
 
     function handleMove(json) {
         console.log('handleMove', json);
-        chessclock.switch(json.time);
+        chessclock.switch(json.oppTime);
 
         var move = chess.move({
             from: json.from, // TODO, why does having aisdjfiasdf.from not throw an error here?
@@ -232,7 +258,7 @@ $(document).ready(function() {
         }
 
         // should this stuff be in null move?
-        checkForEnd(true);
+        checkForEnd();
 
         if (foolsMate) {
             if (whitePlayer) {
@@ -272,9 +298,9 @@ $(document).ready(function() {
             $('.joingame').click(function() {
                 $('#myModal').modal('hide');
 
-                $('#myModal').on('hidden.bs.modal', function (e) { // bootstrap modal sucks
-                    socket.emit('ready');
-                });
+                // $('#myModal').on('hidden.bs.modal', function (e) { // bootstrap modal sucks
+                //     ready();
+                // });
             });
 
             $('#myModal').modal('show');
@@ -282,10 +308,10 @@ $(document).ready(function() {
     };
 
     function setColor(isWhite) {
-        var myTimeDiv = isWhite ? $('#white_time') : $('#black_time');
-        var oppTimeDiv = isWhite ? $('#black_time') : $('#white_time');
-        myTimeDiv.addClass('mytime');
-        oppTimeDiv.removeClass('mytime');
+        // var myTimeDiv = isWhite ? $('#white_time') : $('#black_time');
+        // var oppTimeDiv = isWhite ? $('#black_time') : $('#white_time');
+        // myTimeDiv.addClass('mytime');
+        // oppTimeDiv.removeClass('mytime');
 
         whitePlayer = isWhite;
         board.orientation(isWhite ? 'white' : 'black');
@@ -337,17 +363,9 @@ $(document).ready(function() {
         });
     };
 
+    function checkForEnd() {
+        var myTurn = (chess.turn() === 'w') === whitePlayer;
 
-
-    // chessboard
-    function onDragStart(source, piece, position, orientation) {
-        var whitePiece = piece.search(/^b/) === -1;
-        if (chess.game_over() || (whitePiece !== whitePlayer) === true) {
-            return false;
-        }
-    };
-
-    function checkForEnd(yourTurn) {
         if (chess.game_over()) {
             console.log("game over");
             var result;
@@ -355,11 +373,26 @@ $(document).ready(function() {
                 result = ResultEnum.TIE;
                 console.log("game over stalemate");
             } else {
-                result = (chess.in_checkmate() && !yourTurn) ? ResultEnum.WIN : ResultEnum.LOSE;
-                console.log("game over you ", (chess.in_checkmate() && !yourTurn) ? "won" : "lost");
+                result = (chess.in_checkmate() && !myTurn) ? ResultEnum.WIN : ResultEnum.LOSE;
+                console.log("game over you ", (chess.in_checkmate() && !myTurn) ? "won" : "lost");
             }
 
             socket.emit('end', { result: result });
+        }
+    };
+
+
+
+
+
+
+
+
+    // chessboard
+    function onDragStart(source, piece, position, orientation) {
+        var whitePiece = piece.search(/^b/) === -1;
+        if (chess.game_over() || (whitePiece !== whitePlayer) === true) {
+            return false;
         }
     };
 
@@ -373,11 +406,11 @@ $(document).ready(function() {
         });
 
         if (move === null) return 'snapback';
-        socket.emit('move', {from : source, to: target, fen: chess.fen()}, function (data) {
-            console.log('move succeded', data);
+        socket.emit('move', {from : source, to: target, fen: chess.fen()}, function (json) {
+            console.log('move succeded', json);
+            chessclock.switch(json.time);
+            checkForEnd();
         });
-        chessclock.switch();
-        checkForEnd(false);
     };
 
     function onSnapEnd() { // does en passant, promotion, ...

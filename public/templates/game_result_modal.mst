@@ -6,7 +6,7 @@
         </div>
         <div class="modal-body">
             {{resulttext}} Elo: {{elochange}}
-            <button type="button" class="btn btn-success joingame center-block">New game</button>
+            {{! <button type="button" class="btn btn-success joingame center-block">New game</button> }}
         </div>
     </div>
 </div>
