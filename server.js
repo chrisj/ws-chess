@@ -22,13 +22,15 @@ sass.render({
 var listTemplate = fs.readFileSync(__dirname + '/views/list.mst', {encoding: 'utf8'});
 
 
+///////////////////////////////////////////////////////////////////////////////
+
+
 // http
 var http       = require('http');
-var url        = require("url");
-var qs         = require('querystring');
+var url        = require('url');
 var logger     = require('morgan')('dev');
 var formidable = require('formidable');
-var static     = require('node-static');
+var nodestatic = require('node-static');
 var mustache   = require('mustache');
 
 var port       = process.env.PORT || 8888;
@@ -36,6 +38,8 @@ var port       = process.env.PORT || 8888;
 var mongoose   = require('mongoose');
 
 var dbOpenTime = Date.now();
+
+var DISABLEFILECACHE = true;
 
 // database
 mongoose.connection.once('open', function () {
@@ -92,18 +96,18 @@ function signup(req, res) {
     });
 };
 
-var User = require('./app/models/user');
-
 function list(req, res) {
     console.log('list the users');
+    // todo, users who have played very few games should be ranked at the bottom
+    // double sort?
+    // or we store the rank on the user
     User.find().sort('-chess.elo').exec(function (err, users) {
         var rendered = mustache.render(listTemplate, {'users': users });
         res.end(rendered);
     });
-}
+};
 
-var disableCache = true;
-var fileServer = new static.Server(__dirname + "/public", { cache: false });
+var fileServer = new nodestatic.Server(__dirname + "/public", { cache: !DISABLEFILECACHE });
 
 var handle = {
     GET: {
@@ -130,7 +134,7 @@ function route(handle, pathname, req, res) {
             });
         }
     });
-}
+};
 
 var server = http.createServer(function (req, res) {
     var pathname = url.parse(req.url).pathname;
@@ -140,6 +144,9 @@ var server = http.createServer(function (req, res) {
 server.listen(port, function () {
     console.log('The magic happens on port ' + port);
 });
+
+
+///////////////////////////////////////////////////////////////////////////////
 
 
 // sockets
@@ -154,6 +161,8 @@ sio.use(socketio_jwt.authorize({
 }));
 
 
+var validate = require('jsonschema').validate;
+var messageschema = require('./app/messageschema.js');
 
 
 // usernames -> ChessPlayer
@@ -210,7 +219,6 @@ function logout(player) {
     if (player.game) {
         player.game.forfeit(function (agreement, change) {
             var opponent = player.game.oppPersp.player;
-            console.log({agree: true, result: opponent.game.myPersp.resultClaim, elochange: -change});
             opponent.socket.emit('end', {agree: true, result: opponent.game.myPersp.resultClaim, elochange: -change});
         },
         function (player) { // save callback
@@ -241,6 +249,12 @@ function registerChessEventsForPlayer(player) {
     });
 
     player.socket.on('ready', function (json, callback) {
+        var vr = validate(json, messageschema.READY);
+        if (!vr.valid) {
+            console.log('invalid ready', vr.errors);
+            return;
+        }
+
         console.log('ready', player.username, json);
         chess.GameManager.ready(player, json, function () { // callback for acknowledge ready, only called if we don't start game
             console.log('callback');
@@ -261,6 +275,12 @@ function registerChessEventsForPlayer(player) {
     });
 
     player.socket.on('move', function (json, callback) {
+        var vr = validate(json, messageschema.MOVE);
+        if (!vr.valid) {
+            console.log('invalid move', vr.errors);
+            return;
+        }
+
         console.log('move', player.username);
         player.move(json, function (opponent) { // only called if move succeeds
             var timeRemaining = player.game.myPersp.time;
@@ -274,6 +294,12 @@ function registerChessEventsForPlayer(player) {
     });
 
     player.socket.on('end', function (json) {
+        var vr = validate(json, messageschema.END);
+        if (!vr.valid) {
+            console.log('invalid end', vr.errors);
+            return;
+        }
+
         console.log('end', player.username, player.game.myPersp.isWhite, json);
         player.game.myPersp.resultClaim = json.result; // TODO, move and clean this
 
@@ -299,8 +325,6 @@ function registerChessEventsForPlayer(player) {
                 var opponent = player.game.oppPersp.player;
                 // todo, combine forfeit code
                 opponent.game.forfeit(function (agreement, change) {
-                    var opponent = player.game.oppPersp.player;
-                    console.log('change', change);
                     opponent.socket.emit('end', {agree: true, result: opponent.game.myPersp.resultClaim, elochange: change});
                     player.socket.emit('end', {agree: true, result: player.game.myPersp.resultClaim, elochange: -change});
                 },

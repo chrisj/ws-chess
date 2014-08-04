@@ -12,10 +12,9 @@
     "node-sass" : "latest",
     "node-static" : "latest",
     "formidable" : "latest",
-
     "morgan" : "latest",
-
-    "mustache" : "latest"
+    "mustache" : "latest",
+    "jsonschema" : "latest"
   },
 
   "repository" : {
