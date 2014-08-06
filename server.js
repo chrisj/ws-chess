@@ -24,30 +24,31 @@ var listTemplate = fs.readFileSync(__dirname + '/views/list.mst', {encoding: 'ut
 
 ///////////////////////////////////////////////////////////////////////////////
 
-
-// http
-var http       = require('http');
-var url        = require('url');
-var logger     = require('morgan')('dev');
-var formidable = require('formidable');
-var nodestatic = require('node-static');
-var mustache   = require('mustache');
-
-var port       = process.env.PORT || 8888;
-
-var mongoose   = require('mongoose');
-
-var dbOpenTime = Date.now();
-
 var DISABLEFILECACHE = true;
 
+
+// http
+var port       = process.env.PORT || 8888;
+var http       = require('http');
+var url        = require('url');
+var nodestatic = require('node-static');
+var formidable = require('formidable');
+
+var logger     = require('morgan')('dev');
+var mustache   = require('mustache');
+
 // database
+var mongoose   = require('mongoose');
+var dbOpenTime = Date.now();
 mongoose.connection.once('open', function () {
     console.log('database is open', Date.now() - dbOpenTime);
 });
-
 mongoose.connect('mongodb://localhost:27017/nodeappdb');
 
+
+function isFunction(x) {
+    return typeof(x) === 'function';
+};
 
 function getTokenForUser(user) {
     return jwt.sign({ username: user.local.username }, jwt_secret, { expiresInMinutes: 60 });
@@ -121,7 +122,7 @@ var handle = {
 
 function route(handle, pathname, req, res) {
     logger(req, res, function () {        
-        if (handle[req.method] && typeof handle[req.method][pathname] === 'function') {
+        if (handle[req.method] && isFunction(handle[req.method][pathname])) {
             handle[req.method][pathname](req, res);
         } else {
             // probably move under "/static"
@@ -181,7 +182,7 @@ function initPlayer(player) {
 sio.sockets.on('connection', function (socket) {
     var username = socket.decoded_token.username;
 
-    console.log('connection', username);
+    console.log('connection', username, socket.id);
     if (clients[username]) {
         var player = clients[username];
 
@@ -210,6 +211,7 @@ function logout(player) {
     console.log('logout', player.username);
 
     if (!clients[player.username]) { // since we call logout in a timeout
+        console.log('already logged out (disconnect timeout)');
         return;
     }
 
@@ -225,20 +227,22 @@ function logout(player) {
             player.socket.emit('stats', player.user.chess);
         });
     }
-}
+};
 
 function registerChessEventsForPlayer(player) {
     player.socket.on('disconnect', function () {
-        console.log(player.username, 'disconnect');
-        // if (player.game) {
-        //     player.game.oppPersp.player.socket.emit('opponentlostconnection'); // todo not using this, could be annoying
-        // }
-        player.timeout = setTimeout(function () { logout(player); }, 10 * 1000);
+        console.log('disconnect', player.username, player.socket.id);
+
+        if (clients[player.username]) { // if we haven't already logged out
+            player.timeout = setTimeout(function () { logout(player); }, 10 * 1000);
+        }
     });
 
     player.socket.on('logout', function (callback) {
         logout(player);
-        callback('ok');
+        if (isFunction(callback)) {
+            callback('ok');
+        }
     });
 
     player.socket.on('reconnect', function () {
@@ -258,7 +262,7 @@ function registerChessEventsForPlayer(player) {
         console.log('ready', player.username, json);
         chess.GameManager.ready(player, json, function () { // callback for acknowledge ready, only called if we don't start game
             console.log('callback');
-            if (typeof(callback) == "function") { // is this completely safe?
+            if (isFunction(callback)) { // is this completely safe?
                 callback();
             }
         },
@@ -271,7 +275,9 @@ function registerChessEventsForPlayer(player) {
     player.socket.on('cancel', function (callback) {
         console.log('cancel', player.username);
         chess.GameManager.removePlayer(player);
-        callback();
+        if (isFunction(callback)) {
+            callback();
+        }
     });
 
     player.socket.on('move', function (json, callback) {
@@ -284,12 +290,12 @@ function registerChessEventsForPlayer(player) {
         console.log('move', player.username);
         player.move(json, function (opponent) { // only called if move succeeds
             var timeRemaining = player.game.myPersp.time;
-
             console.log("sending move from " + player.username + " to " + opponent.username);
             json['oppTime'] = timeRemaining; // TODO, don't like this
-            // console.log('time', opponent.game.time(), player.game.time());
             opponent.socket.emit('move', json);
-            callback({ time: timeRemaining });
+            if (isFunction(callback)) {
+                callback({ time: timeRemaining });
+            }
         });
     });
 

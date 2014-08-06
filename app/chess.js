@@ -117,8 +117,6 @@ Player.prototype.toString = function () {
 
 Player.prototype.isWaiting = function () {
     for (var mode in gm.waiting) {
-        console.log('mode', mode);
-        console.log('test', gm.waiting[mode].indexOf(this));
         if (gm.waiting[mode].indexOf(this) !== -1) {
             return Number(mode); // convert from string to number
         }
@@ -127,7 +125,7 @@ Player.prototype.isWaiting = function () {
 };
 
 Player.prototype.move = function (move, callback) {
-    if (this.game && this.game.myPersp.hasTurn) {
+    if (this.game && this.game.myPersp.hasTurn()) {
         this.game.makeMove(move); // increments turn, set lastMove
         callback(this.game.oppPersp.player);
     } else {
@@ -173,7 +171,7 @@ Player.prototype.getReconnectionInfo = function (callback) {
     if (this.game) {
         var gameInfo = this.game.gameInfo();
 
-        if (this.game.myPersp.hasTurn) { // if player is white and its the first turn, oppLast move is null so wont be sent. Kinda dirty.
+        if (this.game.myPersp.hasTurn()) { // if player is white and its the first turn, oppLast move is null so wont be sent. Kinda dirty.
             gameInfo['move'] = this.game.oppPersp.lastMove;          
         }
 
@@ -207,7 +205,7 @@ function Game(mode, white, black) {
         time *= 4;
     } else {
         this.startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-        time *= 1;
+        time *= 6;
     }
 
     this.turn = 0;
@@ -219,8 +217,8 @@ function Game(mode, white, black) {
             isWhite: player === white,
             time: time,
             currentTime: function() { return this.time - (this.startTime ? (Date.now() - this.startTime) : 0); },
-            get hasTurn() { return this.turn % 2 != white } // != important
-        }
+            hasTurn: function() { return game.turn % 2 != this.isWhite }
+        };
 
         if (playerInfo.isWhite) {
             playerInfo.startTime = Date.now();
@@ -277,7 +275,7 @@ Game.prototype.GameAccessorForPlayer = function (white) {
                 oppStats: this.oppPersp.player.user.chess,
                 mode: this.mode,
                 // not used at start
-                fen: this.startFen,
+                fen: this.myPersp.lastMove ? this.myPersp.lastMove.fen : this.startFen,
                 whiteTime: game.white.currentTime(),
                 blackTime: game.black.currentTime()
             }

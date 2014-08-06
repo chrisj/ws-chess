@@ -1,7 +1,7 @@
 exports.READY = {
 	type: 'object',
 	properties: {
-		mode: {type: "number"} // todo, only allow enum values
+		mode: {enum: [0, 1]} // todo, only allow enum values
 	}
 };
 
