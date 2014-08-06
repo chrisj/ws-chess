@@ -14,7 +14,10 @@
     "formidable" : "latest",
     "morgan" : "latest",
     "mustache" : "latest",
-    "jsonschema" : "latest"
+    "jsonschema" : "latest",
+    "mocha" : "latest",
+    "superagent" : "latest",
+    "socket.io-client" : "latest"
   },
 
   "repository" : {
