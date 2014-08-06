@@ -11,7 +11,8 @@
 {{#users}}
 <li>
 {{local.username}}
-{{chess.elo}}
+Elo: {{chess.elo}}
+Wins: {{chess.wins}}
 </li>
 {{/users}}
 </ul>

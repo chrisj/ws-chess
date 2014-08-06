@@ -24,15 +24,21 @@
                 <button id="logoutButton" class="btn btn-danger navbar-btn">Log Out</button>
             </div>
 
-            <button id="joinPractice" class="btn btn btn-warning navbar-btn has-spinner">
-                <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
-                Practice
-            </button>
+            <div class="only-display-if-not-in-game">
+                <button id="cancelReady" disabled=true class="start btn btn btn-danger navbar-btn">
+                    Cancel
+                </button>
 
-            <button id="joinGame" class="btn btn-success navbar-btn has-spinner">
-                <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
-                Join Game
-            </button>
+                <button id="joinPractice" class="start btn btn btn-warning navbar-btn has-spinner">
+                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
+                    Practice
+                </button>
+
+                <button id="joinGame" class="start btn btn-success navbar-btn has-spinner">
+                    <span class="spinner"><i class="fa fa-refresh fa-spin"></i></span>
+                    Join Game
+                </button>
+            </div>
         </div>
     </nav>
 

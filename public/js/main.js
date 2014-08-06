@@ -132,13 +132,27 @@ $(document).ready(function() {
         });
     };
 
+    function handleReady(button) {
+        $('#joinGame').prop("disabled", true);
+        $('#joinPractice').prop("disabled", true);
+        $(button).toggleClass('active', true);
+        $('#cancelReady').prop("disabled", false);
+
+        $('#cancelReady').click(function () {
+            socket.emit('cancel', function (data) {
+                $('#cancelReady').prop("disabled", true);
+                $('#joinGame').prop("disabled", false);
+                $('#joinPractice').prop("disabled", false);
+                $(button).toggleClass('active', false);
+            });
+        });
+    };
+
     function ready(mode, button) {
         socket.emit('ready', { mode: mode }, function (data) {
-            $('#joinGame').prop("disabled", true);
-            $('#joinPractice').prop("disabled", true);
-            $(button).toggleClass('active', true);
+            handleReady(button);
         });
-    }
+    };
 
     function handleReconnection (json) {
         console.log('handleReconnection', json);
@@ -149,12 +163,8 @@ $(document).ready(function() {
         console.log('json.waiting', json.waiting);
 
         if (json.waiting !== false) {
-
             var button = json.waiting === GameModeEnum.CHESSATTACK ? $('#joinPractice') : $('#joinGame');
-
-            $('#joinGame').prop("disabled", true);
-            $('#joinPractice').prop("disabled", true);
-            button.toggleClass('active', true);
+            handleReady(button);
         }
 
         if (json.game) {
@@ -186,6 +196,8 @@ $(document).ready(function() {
     };
 
     function handleGame(json) {
+        console.log('handleGame', json);
+
         setColor(json.white);
         chess = new Chess(json.fen, { mode: json.mode === GameModeEnum.CHESSATTACK ? 'chessattack' : null });
         board.position(chess.fen());
@@ -201,10 +213,11 @@ $(document).ready(function() {
 
         chessclock.start();
 
-        if (json.game) {
+        if (json.move) {
             handleMove(json.move);
         }
 
+        $('.only-display-if-not-in-game').hide();
         $('.only-visible-if-in-game').css('visibility', 'visible');
         $('.only-display-if-in-game').show();
     };
@@ -216,8 +229,6 @@ $(document).ready(function() {
 
         handleGame(json);
 
-        $('.joingame').prop("disabled", true);
-        $('.joingame').toggleClass('active', false);
         $.get('templates/start_game_modal.mst', function (template) {
             var rendered = Mustache.render(template, {
                 opponent: json.opponent,
@@ -272,12 +283,19 @@ $(document).ready(function() {
         }
     };
 
+    function resetReadyButtons() {
+        $('#joinGame').prop("disabled", false);
+        $('#joinPractice').prop("disabled", false);
+        $('#joinGame').toggleClass('active', false);
+        $('#joinPractice').toggleClass('active', false);
+        $('#cancelReady').prop("disabled", true);
+    };
+
     function handleEnd (json) {
         console.log('handleEnd', json);
-
-        $('.joingame').prop("disabled", false);
-
         chessclock.stop();
+        $('.only-display-if-not-in-game').show();
+        resetReadyButtons();
 
         $.get('templates/game_result_modal.mst', function (template) {
 
@@ -354,7 +372,7 @@ $(document).ready(function() {
         });
     };
 
-    // todo, this doesn't seem to be working anymore? or at least on chrome?
+    // todo, this doesn't seem to be working some of the time on new game
     function showModalForced () {
         $('#myModal').modal({
             show: true,
