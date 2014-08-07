@@ -11,6 +11,12 @@ $(document).ready(function() {
         WIN: 1
     }
 
+    var myModal = $('#myModal');
+
+    // ugly bootstrap hack
+    myModal.on('hidden.bs.modal', function () {
+        $(this).removeData('bs.modal');
+    });
 
 
     var token = sessionStorage.getItem("chesstoken");
@@ -173,7 +179,9 @@ $(document).ready(function() {
             handleGame(json.game);
         }
 
-        $('#myModal').modal('hide');
+        if (myModal.data('bs.modal') && myModal.data('bs.modal').isShown) {
+            myModal.modal('hide');
+        }
 
         $('#joinGame').click(function () {
             ready(GameModeEnum.STANDARD, this);
@@ -236,12 +244,12 @@ $(document).ready(function() {
                 opponent: json.opponent,
                 elo: json.oppStats.elo
             });
-            $('#myModal').html(rendered);
+            myModal.html(rendered);
 
             // start game after 3 seconds
             showModalForced();
             setTimeout(function () {
-                $('#myModal').modal('hide');
+                myModal.modal('hide');
 
                 // DEBUG
                 if (foolsMate) {
@@ -318,17 +326,8 @@ $(document).ready(function() {
                 resulttext: resultText,
                 elochange: json.elochange
             });
-            $('#myModal').html(rendered);
-
-            $('.joingame').click(function() {
-                $('#myModal').modal('hide');
-
-                // $('#myModal').on('hidden.bs.modal', function (e) { // bootstrap modal sucks
-                //     ready();
-                // });
-            });
-
-            $('#myModal').modal('show');
+            myModal.html(rendered);
+            myModal.modal('show');
         });
     };
 
@@ -350,7 +349,7 @@ $(document).ready(function() {
         // show login modal
         $.get('templates/login_modal.mst', function (template) {
             var rendered = Mustache.render(template);
-            $('#myModal').html(rendered);
+            myModal.html(rendered);
 
             $('#signup').click(function (e) {
                 e.preventDefault();
@@ -373,7 +372,7 @@ $(document).ready(function() {
 
             showModalForced();
 
-            $('#myModal').on('shown.bs.modal', function (e) {
+            myModal.on('shown.bs.modal', function (e) {
                 $('#usernameInput').select(); // doesnt work with ios
             });
         });
@@ -381,7 +380,7 @@ $(document).ready(function() {
 
     // todo, this doesn't seem to be working some of the time on new game
     function showModalForced () {
-        $('#myModal').modal({
+        myModal.modal({
             show: true,
             keyboard: false,
             backdrop: 'static'
