@@ -227,6 +227,12 @@ $(document).ready(function() {
             handleMove(json.move);
         }
 
+        if (myTurn()) {
+            $('body').addClass('myTurn');
+        } else {
+            $('body').removeClass('myTurn');
+        }
+
         $('.only-display-if-not-in-game').hide();
         $('.only-visible-if-in-game').css('visibility', 'visible');
         $('.only-display-if-in-game').show();
@@ -290,6 +296,12 @@ $(document).ready(function() {
             }
 
             board.position(chess.fen());
+        }
+
+        if (myTurn()) {
+            $('body').addClass('myTurn');
+        } else {
+            $('body').removeClass('myTurn');
         }
     };
 
@@ -387,9 +399,11 @@ $(document).ready(function() {
         });
     };
 
-    function checkForEnd() {
-        var myTurn = (chess.turn() === 'w') === whitePlayer;
+    function myTurn() {
+        return (chess.turn() === 'w') === whitePlayer;
+    };
 
+    function checkForEnd() {
         if (chess.game_over()) {
             console.log("game over");
             var result;
@@ -397,8 +411,8 @@ $(document).ready(function() {
                 result = ResultEnum.TIE;
                 console.log("game over stalemate");
             } else {
-                result = (chess.in_checkmate() && !myTurn) ? ResultEnum.WIN : ResultEnum.LOSE;
-                console.log("game over you ", (chess.in_checkmate() && !myTurn) ? "won" : "lost");
+                result = (chess.in_checkmate() && !myTurn()) ? ResultEnum.WIN : ResultEnum.LOSE;
+                console.log("game over you", (chess.in_checkmate() && !myTurn()) ? "won" : "lost");
             }
 
             socket.emit('end', { result: result });
@@ -433,6 +447,7 @@ $(document).ready(function() {
         socket.emit('move', {from : source, to: target, fen: chess.fen()}, function (json) {
             console.log('move succeded', json);
             chessclock.switch(json.time);
+            $('body').removeClass('myTurn');
             checkForEnd();
         });
     };
