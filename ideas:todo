@@ -5,16 +5,13 @@ chess.js should know nothing about the data format (json). Does that overcomplic
 
 TODO
 
+improve testing
 
-make chess attack a practice style (non ranked)
-
-show ready wait queue
-allow ready cancel
 
 
 
 show active games
-allow ready cancel
+
 
 improve ranking table
 

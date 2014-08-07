@@ -133,17 +133,19 @@ $(document).ready(function() {
     };
 
     function handleReady(button) {
-        $('#joinGame').prop("disabled", true);
-        $('#joinPractice').prop("disabled", true);
+        $(button).prop("disabled", true);
         $(button).toggleClass('active', true);
-        $('#cancelReady').prop("disabled", false);
+        $('#cancelReady').show();
+
+        if (button.id === 'joinGame') {
+            $('#joinPractice').hide();
+        } else {
+            $('#joinGame').hide();
+        }
 
         $('#cancelReady').click(function () {
             socket.emit('cancel', function (data) {
-                $('#cancelReady').prop("disabled", true);
-                $('#joinGame').prop("disabled", false);
-                $('#joinPractice').prop("disabled", false);
-                $(button).toggleClass('active', false);
+                resetReadyButtons();
             });
         });
     };
@@ -163,7 +165,7 @@ $(document).ready(function() {
         console.log('json.waiting', json.waiting);
 
         if (json.waiting !== false) {
-            var button = json.waiting === GameModeEnum.CHESSATTACK ? $('#joinPractice') : $('#joinGame');
+            var button = (json.waiting === GameModeEnum.CHESSATTACK ? $('#joinPractice') : $('#joinGame'))[0];
             handleReady(button);
         }
 
@@ -285,10 +287,15 @@ $(document).ready(function() {
 
     function resetReadyButtons() {
         $('#joinGame').prop("disabled", false);
-        $('#joinPractice').prop("disabled", false);
         $('#joinGame').toggleClass('active', false);
+        $('#joinGame').show();
+
+
+        $('#joinPractice').prop("disabled", false);
         $('#joinPractice').toggleClass('active', false);
-        $('#cancelReady').prop("disabled", true);
+        $('#joinPractice').show();
+
+        $('#cancelReady').hide();
     };
 
     function handleEnd (json) {
