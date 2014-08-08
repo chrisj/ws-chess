@@ -200,6 +200,8 @@ function Game(mode, white, black) {
 
     var time = 60 * 1000;
 
+    this.timePerTurn = 2 * 1000;
+
     if (mode === GameModeEnum.CHESSATTACK) {
         this.startFen = '8/8/rnbqk3/ppppp3/8/8/PPPPP3/RNBQK3 w KQkq - 0 1';
         time *= 4;
@@ -249,7 +251,7 @@ Game.prototype.GameAccessorForPlayer = function (white) {
         makeMove: function (move) {
             var now = Date.now();
             var timeUsed = now - this.myPersp.startTime;
-            this.myPersp.time -= timeUsed;
+            this.myPersp.time += game.timePerTurn - timeUsed;
             this.myPersp.startTime = undefined;
 
             if (this.myPersp.time < 0) {
