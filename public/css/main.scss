@@ -11,7 +11,8 @@
 }
 
 #board {
-    width: 400px;
+    width: 100%;
+    max-width: 400px;
     @include center;
 }
 
@@ -22,6 +23,8 @@
 #black_time {
   background-color: black;
   color: white;
+  border-radius: 3px;
+  padding: 3px;
 }
 
 .mytime {
@@ -35,4 +38,15 @@
 
 body.myTurn #your_turn {
 	visibility: visible;
+}
+
+#boardHeader {
+  text-align: center;
+}
+
+#chessclock {
+  display: inline-block;
+  @include center;
+  padding: 6px;
+  font-size: 16px;
 }

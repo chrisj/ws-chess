@@ -41,6 +41,7 @@ $(document).ready(function() {
     var chessclock;
 
     var board = new ChessBoard('board', cfg);
+    $(window).resize(board.resize);
     var chess;
 
     if (token) {
