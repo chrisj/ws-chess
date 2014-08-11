@@ -2,6 +2,11 @@
 @import 'board-ext';
 @import 'topbar';
 
+body.modal-open {
+  // position: fixed; just for iOS but causes the chessboard to be off center until modal closes
+  // overflow: hidden;
+}
+
 .only-visible-if-logged-in, .only-visible-if-in-game {
   visibility: hidden;
 }
@@ -16,37 +21,29 @@
     @include center;
 }
 
-#white_time {
-
-}
-
-#black_time {
-  background-color: black;
-  color: white;
-  border-radius: 3px;
-  padding: 3px;
-}
-
-.mytime {
-  font-weight: bold;
-}
-
-#your_turn {
-	font-size: 24px;
-	visibility: hidden;
-}
-
-body.myTurn #your_turn {
-	visibility: visible;
-}
-
-#boardHeader {
-  text-align: center;
-}
-
 #chessclock {
+  font-size: 27px;
+}
+
+#chessclock span {
+  width: 50%;
   display: inline-block;
-  @include center;
-  padding: 6px;
-  font-size: 16px;
+  padding: 0 4px;
+}
+
+#my-time {
+  text-align: right;
+  opacity: 0.5;
+}
+
+body.myTurn #my-time {
+  opacity: 1;
+}
+
+#opp-time {
+  font-size: 18px;
+}
+
+body.myTurn #opp-time {
+  opacity: 0.5;
 }

@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Chess</title>
+    <title>PawnChain: Online Chess</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="libs/bootstrap-3.2.0-dist/css/bootstrap.css">
-    <link rel="stylesheet" href="libs/font-awesome/css/font-awesome.min.css">
     <link rel="stylesheet" href="libs/chessboardjs/css/chessboard-0.3.0.css">
-    
     <link rel="stylesheet" href="main.css"> <!-- TODO: it would be nice to include above stylesheets in this -->
 </head>
 <body>
@@ -38,15 +36,9 @@
         </div>
     </nav>
 
-    <div id="boardHeader" class="only-display-if-in-game">
-        <div id="chessclock" class="panel panel-default">
-            <!-- <div class="panel-body">   -->
-                <span id="white_time"></span> <i class="fa fa-clock-o"></i> <span id="black_time"></span>
-            <!-- </div> -->
-        </div>
+    <div id="chessclock" class="only-display-if-in-game">
+        <span id="my-time"></span><span id="opp-time"></span> <!-- must be on same line due to width 50% -->
     </div>
-
-    <!-- <span id="your_turn">Your Turn</span> -->
 
     <div id="board"></div>
 
@@ -57,6 +49,16 @@
 
     Using <a href="http://chessboardjs.com">chessboard.js</a> and <a href="https://github.com/jhlywa/chess.js">chess.js</a>.
     Source is available at <a href="https://github.com/chrisj/ws-chess">github.com/chrisj/ws-chess</a>
+
+<!--     Guide:
+    <div class="row">
+        <div class="col-md-4">
+            Practice: Chess Attack, 4 mintes + 2 seconds per turn
+        </div>
+        <div class="col-md-4">
+            Join Game: Normal Chess, 6 minutes + 2 seconds per turn
+        </div>
+    </div> -->
 
 
 

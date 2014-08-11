@@ -19,8 +19,8 @@ game {
 }
 
 clock {
-    whiteTime
-    blackTime
+    white: NUMBER 
+    black: NUMBER
 }
 
 stats {
@@ -77,8 +77,7 @@ clients : list of STRING
 
 
 move callback {
-    whiteTime: NUMBER,
-    blackTime: NUMBER
+    time: NUMBER
 }
 
 

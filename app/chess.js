@@ -273,13 +273,15 @@ Game.prototype.GameAccessorForPlayer = function (white) {
             return {
                 white: this.myPersp.isWhite,
                 opponent: this.oppPersp.player.username,
-                time: this.myPersp.currentTime(),
                 oppStats: this.oppPersp.player.user.chess,
                 mode: this.mode,
                 // not used at start
                 fen: this.myPersp.lastMove ? this.myPersp.lastMove.fen : this.startFen,
-                whiteTime: game.white.currentTime(),
-                blackTime: game.black.currentTime()
+                clock: {
+                    white: game.white.currentTime(),
+                    black: game.black.currentTime()
+                }
+
             }
         }
     }
@@ -321,8 +323,7 @@ Game.prototype.end = function (player, callback, savecallback) {
 
 Game.prototype.forfeit = function (player, callback, savecallback) {
     player.game.myPersp.resultClaim = ResultEnum.LOSE;
-    player.game.oppPersp.resultClaim = ResultEnum.WIN; // uhh
-
+    player.game.oppPersp.resultClaim = ResultEnum.WIN;
     this.end(player, callback, savecallback);
 };
 

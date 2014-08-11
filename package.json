@@ -17,7 +17,8 @@
     "jsonschema" : "latest",
     "mocha" : "latest",
     "superagent" : "latest",
-    "socket.io-client" : "latest"
+    "socket.io-client" : "latest",
+    "async" : "latest"
   },
 
   "repository" : {

@@ -41,7 +41,16 @@ $(document).ready(function() {
     var chessclock;
 
     var board = new ChessBoard('board', cfg);
-    $(window).resize(board.resize);
+
+    var inProcessOfRedraw = false;
+    $(window).resize(function () {
+        inProcessOfRedraw = true;
+        window.requestAnimationFrame(function () {
+            board.resize(); // todo, only call this if $('#board').width has changed
+            inProcessOfRedraw = false;
+        }); // for performance reasons, need to test. Is inprocess flag neccessary?
+    });
+
     var chess;
 
     if (token) {
@@ -213,9 +222,13 @@ $(document).ready(function() {
         chess = new Chess(json.fen, { mode: json.mode === GameModeEnum.CHESSATTACK ? 'chessattack' : null });
         board.position(chess.fen());
 
-        chessclock = new ChessClock(json.whiteTime, json.blackTime, chess.turn() === 'w', function (white, black) {
-            $('#white_time').html(white.minutes + ':' + (white.seconds < 10 ? '0' : '') + white.seconds);
-            $('#black_time').html(black.minutes + ':' + (black.seconds < 10 ? '0' : '') + black.seconds);
+        chessclock = new ChessClock(json.clock.white, json.clock.black, chess.turn() === 'w', function (white, black) {
+
+            var whiteEl = whitePlayer ? $('#my-time') : $('#opp-time');
+            var blackEl = whitePlayer ? $('#opp-time') : $('#my-time');
+
+            whiteEl.html(white.minutes + ':' + (white.seconds < 10 ? '0' : '') + white.seconds);
+            blackEl.html(black.minutes + ':' + (black.seconds < 10 ? '0' : '') + black.seconds);
 
             if ((whitePlayer && black.totalseconds < 0) || (!whitePlayer && white.totalseconds < 0)) {
                 socket.emit('outoftime');
@@ -223,15 +236,10 @@ $(document).ready(function() {
         });
 
         chessclock.start();
+        updateClockUI();
 
         if (json.move) {
             handleMove(json.move);
-        }
-
-        if (myTurn()) {
-            $('body').addClass('myTurn');
-        } else {
-            $('body').removeClass('myTurn');
         }
 
         $('.only-display-if-not-in-game').hide();
@@ -241,9 +249,6 @@ $(document).ready(function() {
 
     function handleStart (json) {
         console.log('handleStart', json);
-
-        json.whiteTime = json.blackTime = json.time;
-
         handleGame(json);
 
         $.get('templates/start_game_modal.mst', function (template) {
@@ -269,9 +274,21 @@ $(document).ready(function() {
         });
     };
 
+    function updateClockUI() {
+        if (myTurn()) {
+            $('body').addClass('myTurn');
+        } else {
+            $('body').removeClass('myTurn');
+        }
+    }
+
+    function switchClock(time) {
+        chessclock.switch(time);
+        updateClockUI();
+    }
+
     function handleMove(json) {
         console.log('handleMove', json);
-        chessclock.switch(json.oppTime);
 
         var move = chess.move({
             from: json.from, // TODO, why does having aisdjfiasdf.from not throw an error here?
@@ -288,6 +305,8 @@ $(document).ready(function() {
         // should this stuff be in null move?
         checkForEnd();
 
+        switchClock(json.oppTime);
+
         if (foolsMate) {
             if (whitePlayer) {
                 onDrop("g2", "g4");
@@ -297,12 +316,6 @@ $(document).ready(function() {
             }
 
             board.position(chess.fen());
-        }
-
-        if (myTurn()) {
-            $('body').addClass('myTurn');
-        } else {
-            $('body').removeClass('myTurn');
         }
     };
 
@@ -400,8 +413,12 @@ $(document).ready(function() {
         });
     };
 
+    function whitesTurn() {
+        return chess.turn() === 'w';
+    }
+
     function myTurn() {
-        return (chess.turn() === 'w') === whitePlayer;
+        return whitesTurn() === whitePlayer;
     };
 
     function checkForEnd() {
@@ -447,9 +464,8 @@ $(document).ready(function() {
         if (move === null) return 'snapback';
         socket.emit('move', {from : source, to: target, fen: chess.fen()}, function (json) {
             console.log('move succeded', json);
-            chessclock.switch(json.time);
-            $('body').removeClass('myTurn');
             checkForEnd();
+            switchClock(json.time);
         });
     };
 

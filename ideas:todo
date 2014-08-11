@@ -2,12 +2,38 @@ IDEAS
 
 chess.js should know nothing about the data format (json). Does that overcomplicate?
 
+BUGS
 
 TODO
 
+add notice that this site is under constant development, don't expect accounts to be saved. Please report any issue to 
+
+make login more understandable
+
+
+include game instructions, maybe new user message.
+
+
+
 improve testing
 
+improve readme
 
+
+use require.js on client side
+
+
+nodemon - changing public files should not cause server to restart!
+allow compiling scss without restarting server
+
+
+letting player know why the won or lost or tied
+
+
+fork chessboard.js
+
+
+improve the modal behavior, especially on phones
 
 
 show active games
@@ -15,6 +41,3 @@ show active games
 
 improve ranking table
 
-
-
-perfect the modal
