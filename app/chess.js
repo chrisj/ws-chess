@@ -149,7 +149,7 @@ Player.prototype.updateElos = function (opponent, result) {
 
 Player.prototype.updateStats = function () {
     // make this nicer?
-    switch (this.game.resultClaim) {
+    switch (this.game.myPersp.resultClaim) {
         case ResultEnum.WIN:
             this.user.chess.wins += 1;
             break;

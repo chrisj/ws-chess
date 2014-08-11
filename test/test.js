@@ -4,9 +4,17 @@ var superagent = require('superagent');
 var baseURL = 'http://127.0.0.1:8888';
 var io = require('socket.io-client');
 
+var async = require('async');
+
 var GameModeEnum = {
     STANDARD: 0,
     CHESSATTACK: 1
+}
+
+var ResultEnum = {
+    LOSE: 0,
+    TIE: 0.5,
+    WIN: 1
 }
 
 function login (user, pass, callback) {
@@ -41,6 +49,45 @@ function loginAndEstablishSocket (user, pass, callback) {
 	});
 };
 
+function readyTwoPlayers(p1Socket, p2Socket, mode, callback) {
+	p1Socket.emit('ready', { mode: mode }, function (data) {
+		p2Socket.emit('ready', { mode: GameModeEnum.STANDARD }, function (data) {
+			// will not be called
+		});
+
+		async.parallel([
+			function (callback) {
+				p1Socket.on('start', function (json) {
+					console.log('got results from p1');
+					callback(null, json);
+				});
+			},
+			function (callback) {
+				p2Socket.on('start', function (json) {
+					console.log('got results from p2');
+					callback(null, json);
+				});
+			}
+		],
+		function (err, results) {
+			console.log('got results from both');
+
+			var json1 = results[0];
+			var json2 = results[1];	
+
+			assert(typeof(json1.white) === 'boolean', 'white should be a bool');
+			assert.equal(json1.mode, GameModeEnum.STANDARD);
+			// assert.equal(json1.clock.white, json1.clock.black);
+
+			assert(json1.white !== json2.white, 'both players cannot be white');
+
+			var whiteSocket = json1.white ? p1Socket : p2Socket;
+			var blackSocket = json1.white ? p2Socket : p1Socket;
+			callback(whiteSocket, blackSocket);
+		});
+	});
+}
+
 
 describe('Server', function () {
 	describe('login', function () {
@@ -74,9 +121,24 @@ describe('Server', function () {
 			beforeEach(function (done) {
 				loginAndEstablishSocket('test', 'asdf', function (s1) {
 					p1Socket = s1;
+
+					p1Socket.on('reconnection_info', function (json) {
+						console.log('got stats p1');
+						p1Socket.wscdebug = {}; // ugly but make it easy when dealing with white and black sockets
+						p1Socket.wscdebug.stats = json.stats;
+					});
+
+
 					loginAndEstablishSocket('chris', 'asdf', function (s2) {
 						p2Socket = s2;
-						done();
+
+
+						p2Socket.on('reconnection_info', function (json) {
+							console.log('got stats p2');
+							p2Socket.wscdebug = {};
+							p2Socket.wscdebug.stats = json.stats;
+							done();
+						});
 					});
 				});
 			});
@@ -84,43 +146,99 @@ describe('Server', function () {
 			afterEach(function (done) {
 				// even though we logout, the connection stays up so the disconnect event isn't
 				// fired until after all the tests finish.
-				p1Socket.emit('logout', function (data) {
-					console.log('p1Socket logged out', data);
-					p2Socket.emit('logout', function (data) {
-						console.log('p2Socket logged out', data);
-						done();
-					});
-				});
-			});
 
-			it('should send reconnection_info', function (done) {
-				// testing p2 since we already missed p1's reconnection
-				p2Socket.on('reconnection_info', function (json) {
-		    		console.log('got reconnection_info!', json);
-		    		assert.equal(json.username, 'chris');
-		    		assert.equal(json.waiting, false);
+				async.parallel([
+					function (callback) {
+						if (p1Socket.disconnected) {
+							callback(null, null);
+						} else {
+							p1Socket.emit('logout', function (data) {
+								callback(null, null);
+							});
+						}
+					},
+					function (callback) {
+						if (p2Socket.disconnected) {
+							callback(null, null);
+						} else {
+							p2Socket.emit('logout', function (data) {
+								callback(null, null);
+							});
+						}
+					}
+				],
+				function (err, results) {
 					done();
 				});
 			});
 
-			it('should allow us to ready up and start a game', function (done) {
-				p1Socket.emit('ready', { mode: GameModeEnum.STANDARD }, function (data) {
-					console.log('ready!', data);
+			// it('should send reconnection_info', function (done) {
+			// 	// testing p2 since we already missed p1's reconnection
+			// 	p2Socket.on('reconnection_info', function (json) {
+		 //    		console.log('got reconnection_info!', json);
+		 //    		assert.equal(json.username, 'chris');
+		 //    		assert.equal(json.waiting, false);
+			// 		done();
+			// 	});
+			// });
 
-					p2Socket.emit('ready', { mode: GameModeEnum.STANDARD }, function (data) {
-						// will not be called
+			it('should allow us to ready up and play a game', function (done) {
+				readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
+					var move1 = { from: 'f2', to: 'f3', fen: 'rnbqkbnr/pppppppp/8/8/8/5P2/PPPPP1PP/RNBQKBNR b KQkq - 0 1'};
+					var move2 = { from: 'e7', to: 'e5', fen: 'rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq e6 0 2'};
+
+					whiteSocket.emit('move', move1);
+
+					blackSocket.on('move', function (json) {
+						assert.equal(json.from, move1.from);
+						assert.equal(json.to, move1.to);
+						assert.equal(json.fen, move1.fen);
+
+						// assert exists oppTime
+
+						blackSocket.emit('move', move2);
+
+						whiteSocket.on('move', function (json) {
+							assert.equal(json.from, move2.from);
+							assert.equal(json.to, move2.to);
+							assert.equal(json.fen, move2.fen);
+
+							whiteSocket.emit('end', {result: ResultEnum.LOSE});
+							blackSocket.emit('end', {result: ResultEnum.WIN});
+
+							// todo, parallel
+							whiteSocket.on('end', function (json) {
+								assert.ok(json.agree, 'players sent opposite results so they should agree');
+								assert.equal(json.result, ResultEnum.LOSE);
+							});
+
+							blackSocket.on('stats', function (json) {
+								console.log('wins', json.wins, blackSocket.wscdebug.stats.wins);
+								assert.equal(json.wins, blackSocket.wscdebug.stats.wins + 1, 'player won so wins should increase');
+								assert.equal(json.ties, blackSocket.wscdebug.stats.ties, 'player won so ties should stay the same');
+								assert.equal(json.losses, blackSocket.wscdebug.stats.losses, 'player won so losses should stay the same');
+								done();
+							});
+						});
+					});
+		        });
+			});
+
+			it('should allow us to ready up and play a game', function (done) {
+				this.timeout(12000); // TODO, for debug, we should configure the server to drop clients more quickly (but it is good to leave the  server in its default state)
+
+				readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
+					blackSocket.disconnect();
+					whiteSocket.on('end', function (json) {
+						assert.equal(json.result, ResultEnum.WIN, 'player disconnecting should cause the other player to win');
 					});
 
-					p2Socket.on('start', function (json) {
-						console.log('we are starting!');
-						assert(typeof(json.white) === 'boolean', 'white should be a bool');
-						assert.equal(json.mode, GameModeEnum.STANDARD);
-						assert.equal(json.time, 5 * 60 * 1000);
+					whiteSocket.on('stats', function (json) {
+						console.log('wins', json.wins, whiteSocket.wscdebug.stats.wins);
+						assert.equal(json.wins, whiteSocket.wscdebug.stats.wins + 1, 'wins count should increment by one');
 						done();
 					});
-
-					// todo, we should wait for both start messages so we can ensure that they have opposing white, etc
-		        });
+				});
 			});
 		});
 	});
