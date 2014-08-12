@@ -36,7 +36,7 @@ function establishSocket (token, callback) {
         callback();
     });
 
-    socket.on('connect', function () {
+    socket.once('connect', function () {
     	callback(socket);
     });
 };
@@ -57,13 +57,13 @@ function readyTwoPlayers(p1Socket, p2Socket, mode, callback) {
 
 		async.parallel([
 			function (callback) {
-				p1Socket.on('start', function (json) {
+				p1Socket.once('start', function (json) {
 					console.log('got results from p1');
 					callback(null, json);
 				});
 			},
 			function (callback) {
-				p2Socket.on('start', function (json) {
+				p2Socket.once('start', function (json) {
 					console.log('got results from p2');
 					callback(null, json);
 				});
@@ -86,7 +86,25 @@ function readyTwoPlayers(p1Socket, p2Socket, mode, callback) {
 			callback(whiteSocket, blackSocket);
 		});
 	});
-}
+};
+
+function playMoves(activePlayer, inactivePlayer, listofmoves, done) {
+	if (listofmoves.length === 0) {
+		done();
+	} else {
+		var move = listofmoves[0];
+		activePlayer.emit('move', move);
+
+		inactivePlayer.once('move', function (json) {
+			console.log('got move');
+			assert.equal(json.from, move.from);
+			assert.equal(json.to, move.to);
+			assert.equal(json.fen, move.fen);
+
+			playMoves(inactivePlayer, activePlayer, listofmoves.slice(1), done);
+		});
+	}
+};
 
 
 describe('Server', function () {
@@ -99,145 +117,130 @@ describe('Server', function () {
 		});
 	});
 
-	describe('get socket', function () {
-		var token;
+	describe('using sockets', function () {
+		var p1Socket;
+		var p2Socket;
 
-		before(function (done) {
-			console.log('beforeEach called');
-			login('test', 'asdf', function (t) {
-				token = t;
+		beforeEach(function (done) {
+			loginAndEstablishSocket('test', 'asdf', function (s1) {
+				p1Socket = s1;
+				p1Socket.once('reconnection_info', function (json) {
+					assert.equal(json.waiting, false);
+					console.log('got stats p1');
+					p1Socket.wscdebug = {}; // ugly but make it easy when dealing with white and black sockets
+					p1Socket.wscdebug.stats = json.stats;
+				});
+
+				loginAndEstablishSocket('chris', 'asdf', function (s2) {
+					p2Socket = s2;
+					p2Socket.once('reconnection_info', function (json) {
+						console.log('got stats p2');
+						p2Socket.wscdebug = {};
+						p2Socket.wscdebug.stats = json.stats;
+						done();
+					});
+				});
+			});
+		});
+
+		afterEach(function (done) {
+			// even though we logout, the connection stays up so the disconnect event isn't
+			// fired until after all the tests finish.
+
+			async.parallel([
+				function (callback) {
+					if (p1Socket.disconnected) {
+						callback(null, null);
+					} else {
+						p1Socket.emit('logout', function (data) {
+							callback(null, null);
+						});
+					}
+				},
+				function (callback) {
+					if (p2Socket.disconnected) {
+						callback(null, null);
+					} else {
+						p2Socket.emit('logout', function (data) {
+							callback(null, null);
+						});
+					}
+				}
+			],
+			function (err, results) {
 				done();
 			});
 		});
 
-		// it('should establish a websocket connection and get reconnection info', function (done) {
+		it('should allow us to ready up and play a game that ends in an agreement', function (done) {
+			readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
+				var move1 = { from: 'f2', to: 'f3', fen: 'rnbqkbnr/pppppppp/8/8/8/5P2/PPPPP1PP/RNBQKBNR b KQkq - 0 1'};
+				var move2 = { from: 'e7', to: 'e5', fen: 'rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq e6 0 2'};
+				var move3 = { from: 'e7', to: 'e99', fen: ''};
 
+				var moves = [move1, move2, move3];
 
+				playMoves(whiteSocket, blackSocket, moves, function () {
 
-		describe('use socket', function () {
-			var p1Socket;
-			var p2Socket;
+					whiteSocket.emit('end', {result: ResultEnum.LOSE});
+					blackSocket.emit('end', {result: ResultEnum.WIN});
 
-			beforeEach(function (done) {
-				loginAndEstablishSocket('test', 'asdf', function (s1) {
-					p1Socket = s1;
-
-					p1Socket.on('reconnection_info', function (json) {
-						console.log('got stats p1');
-						p1Socket.wscdebug = {}; // ugly but make it easy when dealing with white and black sockets
-						p1Socket.wscdebug.stats = json.stats;
-					});
-
-
-					loginAndEstablishSocket('chris', 'asdf', function (s2) {
-						p2Socket = s2;
-
-
-						p2Socket.on('reconnection_info', function (json) {
-							console.log('got stats p2');
-							p2Socket.wscdebug = {};
-							p2Socket.wscdebug.stats = json.stats;
-							done();
-						});
-					});
-				});
-			});
-
-			afterEach(function (done) {
-				// even though we logout, the connection stays up so the disconnect event isn't
-				// fired until after all the tests finish.
-
-				async.parallel([
-					function (callback) {
-						if (p1Socket.disconnected) {
-							callback(null, null);
-						} else {
-							p1Socket.emit('logout', function (data) {
-								callback(null, null);
-							});
-						}
-					},
-					function (callback) {
-						if (p2Socket.disconnected) {
-							callback(null, null);
-						} else {
-							p2Socket.emit('logout', function (data) {
-								callback(null, null);
-							});
-						}
-					}
-				],
-				function (err, results) {
-					done();
-				});
-			});
-
-			// it('should send reconnection_info', function (done) {
-			// 	// testing p2 since we already missed p1's reconnection
-			// 	p2Socket.on('reconnection_info', function (json) {
-		 //    		console.log('got reconnection_info!', json);
-		 //    		assert.equal(json.username, 'chris');
-		 //    		assert.equal(json.waiting, false);
-			// 		done();
-			// 	});
-			// });
-
-			it('should allow us to ready up and play a game', function (done) {
-				readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
-					var move1 = { from: 'f2', to: 'f3', fen: 'rnbqkbnr/pppppppp/8/8/8/5P2/PPPPP1PP/RNBQKBNR b KQkq - 0 1'};
-					var move2 = { from: 'e7', to: 'e5', fen: 'rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq e6 0 2'};
-
-					whiteSocket.emit('move', move1);
-
-					blackSocket.on('move', function (json) {
-						assert.equal(json.from, move1.from);
-						assert.equal(json.to, move1.to);
-						assert.equal(json.fen, move1.fen);
-
-						// assert exists oppTime
-
-						blackSocket.emit('move', move2);
-
-						whiteSocket.on('move', function (json) {
-							assert.equal(json.from, move2.from);
-							assert.equal(json.to, move2.to);
-							assert.equal(json.fen, move2.fen);
-
-							whiteSocket.emit('end', {result: ResultEnum.LOSE});
-							blackSocket.emit('end', {result: ResultEnum.WIN});
-
-							// todo, parallel
-							whiteSocket.on('end', function (json) {
+					async.parallel([
+						function (callback) {
+							whiteSocket.once('end', function (json) {
 								assert.ok(json.agree, 'players sent opposite results so they should agree');
 								assert.equal(json.result, ResultEnum.LOSE);
+								callback(null, null);
+								console.log('finished', 1);
 							});
-
-							blackSocket.on('stats', function (json) {
-								console.log('wins', json.wins, blackSocket.wscdebug.stats.wins);
+						},
+						function (callback) {
+							blackSocket.once('end', function (json) {
+								assert.ok(json.agree, 'players sent opposite results so they should agree');
+								assert.equal(json.result, ResultEnum.WIN);
+								callback(null, null);
+								console.log('finished', 2);
+							});
+						},
+						function (callback) {
+							whiteSocket.once('stats', function (json) {
+								assert.equal(json.wins, whiteSocket.wscdebug.stats.wins, 'player lost so wins should stay the same');
+								assert.equal(json.ties, whiteSocket.wscdebug.stats.ties, 'player lost so ties should stay the same');
+								assert.equal(json.losses, whiteSocket.wscdebug.stats.losses + 1, 'player lost so losses should increase');
+								callback(null, null);
+								console.log('finished', 3);
+							});
+						},
+						function (callback) {
+							blackSocket.once('stats', function (json) {
 								assert.equal(json.wins, blackSocket.wscdebug.stats.wins + 1, 'player won so wins should increase');
 								assert.equal(json.ties, blackSocket.wscdebug.stats.ties, 'player won so ties should stay the same');
 								assert.equal(json.losses, blackSocket.wscdebug.stats.losses, 'player won so losses should stay the same');
-								done();
+								callback(null, null);
+								console.log('finished', 4);
 							});
-						});
-					});
-		        });
-			});
-
-			it('should allow us to ready up and play a game', function (done) {
-				this.timeout(12000); // TODO, for debug, we should configure the server to drop clients more quickly (but it is good to leave the  server in its default state)
-
-				readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
-					blackSocket.disconnect();
-					whiteSocket.on('end', function (json) {
-						assert.equal(json.result, ResultEnum.WIN, 'player disconnecting should cause the other player to win');
-					});
-
-					whiteSocket.on('stats', function (json) {
-						console.log('wins', json.wins, whiteSocket.wscdebug.stats.wins);
-						assert.equal(json.wins, whiteSocket.wscdebug.stats.wins + 1, 'wins count should increment by one');
+						}
+					],
+					function (err, results) {
 						done();
 					});
+				});
+	        });
+		});
+
+		it('should give the opposing player a win when a player disconnects without reconnecting within 10 seconds', function (done) {
+			this.timeout(12000); // TODO, for debug, we should configure the server to drop clients more quickly (but it is good to leave the  server in its default state)
+
+			readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
+				blackSocket.disconnect();
+				whiteSocket.once('end', function (json) {
+					assert.equal(json.result, ResultEnum.WIN, 'player disconnecting should cause the other player to win');
+				});
+
+				whiteSocket.once('stats', function (json) {
+					console.log('wins', json.wins, whiteSocket.wscdebug.stats.wins);
+					assert.equal(json.wins, whiteSocket.wscdebug.stats.wins + 1, 'wins count should increment by one');
+					done();
 				});
 			});
 		});
