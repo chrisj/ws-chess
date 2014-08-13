@@ -11,7 +11,7 @@ body.modal-open {
   visibility: hidden;
 }
 
-.only-display-if-logged-in, .only-display-if-in-game {
+.only-display-if-logged-in, .only-display-if-in-game, .only-display-after-game {
   display: none;
 }
 
@@ -19,6 +19,11 @@ body.modal-open {
     width: 100%;
     max-width: 400px;
     @include center;
+}
+
+#historyButtons {
+  margin-top: 10px;
+  text-align: center;
 }
 
 #chessclock {

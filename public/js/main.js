@@ -42,6 +42,31 @@ $(document).ready(function() {
 
     var board = new ChessBoard('board', cfg);
 
+    var futureMoves = [];
+
+
+    $('#prev').click(function () {
+        futureMoves.push(chess.undo());
+        board.position(chess.fen());
+
+        if (chess.history().length === 0) {
+            $('#prev').prop("disabled", true);
+        }
+
+        $('#next').prop("disabled", false);
+    });
+
+    $('#next').click(function () {
+        chess.move(futureMoves.pop());
+        board.position(chess.fen());
+
+        if (futureMoves.length === 0) {
+            $('#next').prop("disabled", true);
+        }
+
+        $('#prev').prop("disabled", false);
+    });
+
     var inProcessOfRedraw = false;
     $(window).resize(function () {
         inProcessOfRedraw = true;
@@ -243,6 +268,7 @@ $(document).ready(function() {
         }
 
         $('.only-display-if-not-in-game').hide();
+        $('.only-display-after-game').hide();
         $('.only-visible-if-in-game').css('visibility', 'visible');
         $('.only-display-if-in-game').show();
     };
@@ -291,7 +317,7 @@ $(document).ready(function() {
         console.log('handleMove', json);
 
         var move = chess.move({
-            from: json.from, // TODO, why does having aisdjfiasdf.from not throw an error here?
+            from: json.from,
             to: json.to,
             promotion: 'q'
         });
@@ -332,11 +358,23 @@ $(document).ready(function() {
         $('#cancelReady').hide();
     };
 
+    function resetHistoryButtons() {
+        if (chess.history().length === 0) {
+            $('#prev').prop("disabled", true);
+        }
+        $('#next').prop("disabled", true);
+    };
+
     function handleEnd (json) {
         console.log('handleEnd', json);
         chessclock.stop();
         $('.only-display-if-not-in-game').show();
+        $('.only-display-after-game').show();
+
+
         resetReadyButtons();
+
+        resetHistoryButtons();
 
         $.get('templates/game_result_modal.mst', function (template) {
 
@@ -350,7 +388,8 @@ $(document).ready(function() {
 
             var rendered = Mustache.render(template, {
                 resulttext: resultText,
-                elochange: json.elochange
+                elochange: json.elochange,
+                history: chess.history()
             });
             myModal.html(rendered);
             myModal.modal('show');
