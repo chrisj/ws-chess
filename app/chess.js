@@ -294,9 +294,9 @@ Game.prototype.end = function (player, callback, savecallback) {
 
     var change = 0;
 
-    if (agreement) {
-        var opponent = player.game.oppPersp.player;
+    var opponent = player.game.oppPersp.player;
 
+    if (agreement) {
         if (player.game.mode !== GameModeEnum.CHESSATTACK) { // only update players if it is a 'real' game
             player.updateStats();
             opponent.updateStats();
