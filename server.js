@@ -169,6 +169,7 @@ var messageschema = require('./app/messageschema.js');
 // usernames -> ChessPlayer
 var clients = {};
 var chess = require('./app/chess.js');
+var bot = require('./bot.js');
 
 
 function initPlayer(player) {
@@ -261,8 +262,13 @@ function registerChessEventsForPlayer(player) {
 
         console.log('ready', player.username, json);
         chess.GameManager.ready(player, json, function () { // callback for acknowledge ready, only called if we don't start game
-            console.log('callback');
+
+
             if (isFunction(callback)) { // is this completely safe?
+                player.readyTimeout = setTimeout(function () {
+                    bot.loginAndJoinGame('bot1', 'asdf');
+                }, 5 * 1000);
+
                 callback();
             }
         },
@@ -275,6 +281,7 @@ function registerChessEventsForPlayer(player) {
     player.socket.on('cancel', function (callback) {
         console.log('cancel', player.username);
         chess.GameManager.removePlayer(player);
+        clearTimeout(player.readyTimeout);
         if (isFunction(callback)) {
             callback();
         }
@@ -339,5 +346,5 @@ function registerChessEventsForPlayer(player) {
                 });
             }
         }
-    })
+    });
 };
