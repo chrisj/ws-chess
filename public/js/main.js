@@ -32,7 +32,6 @@ $(document).ready(function() {
     var cfg = {
       draggable: true,
       onDrop: onDrop,
-      onSnapEnd: onSnapEnd,
       onDragStart: onDragStart,
       onMouseoutSquare: onMouseoutSquare,
       onMouseoverSquare: onMouseoverSquare
@@ -41,6 +40,8 @@ $(document).ready(function() {
     var chessclock;
 
     var board = new ChessBoard('board', cfg);
+
+    var promotionPopoverActive = false;
 
     var futureMoves = [];
 
@@ -486,35 +487,86 @@ $(document).ready(function() {
     // chessboard
     function onDragStart(source, piece, position, orientation) {
         var whitePiece = piece.search(/^b/) === -1;
-        if (chess.game_over() || (whitePiece !== whitePlayer) === true) {
+        if (chess.game_over() || whitePiece !== whitePlayer) {
             return false;
         }
+    };
+
+    function displayPromotionPopover(tile, callback) {
+        var tileEl = $('.square-' + tile);
+
+        function choiceButtonHTML(piece) {
+            var template = '<button data-piece="{{piece}}" type="button" class="btn btn-default">' +
+                    '<img src="libs/chessboardjs/img/chesspieces/wikipedia/{{img}}.png" width=30 height=30 />' +
+                '</button>';
+
+            var json = {
+                piece: piece,
+                img: (whitePlayer ? 'w' : 'b') + piece.toUpperCase()
+            };
+            return Mustache.render(template, json);
+        };
+
+        tileEl.popover({
+            content: choiceButtonHTML('q') + choiceButtonHTML('r') + choiceButtonHTML('b') + choiceButtonHTML('n'),
+            placement: 'top',
+            html: true
+        });
+
+        tileEl.popover('show');
+
+        $('.popover button').click(function () {
+            callback($(this).data('piece'));
+            tileEl.popover('destroy');
+        });
     };
 
     function onDrop(source, target) {
         removeGreySquares();
 
-        var move = chess.move({
-            from: source,
-            to: target,
-            promotion: 'q'
+        var moveCallback = function (promotion) {
+            console.log('promotion', promotion);
+
+            chess.move({
+                from: source,
+                to: target,
+                promotion: promotion
+            });
+
+            var san = chess.history().pop();
+
+            socket.emit('move', {san : san, fen: chess.fen()}, function (json) {
+                console.log('move succeded', json);
+                checkForEnd();
+                switchClock(json.time);
+
+                board.position(chess.fen());
+                boardEl.find(squareClass).removeClass('opp-highlight-' + (whitePlayer ? 'black' : 'white'));
+            });
+        };
+
+        var moves = chess.moves({
+            square: source,
+            verbose: true
         });
 
-        if (move === null) return 'snapback';
-        socket.emit('move', {from : source, to: target, fen: chess.fen()}, function (json) {
-            console.log('move succeded', json);
-            checkForEnd();
-            switchClock(json.time);
-        });
+        for (var i = 0; i < moves.length; i++) {
+            var move = moves[i];
+
+            if (move.to === target) {
+                console.log('this is a valid move', move);
+
+                if (move.flags.indexOf('p') !== -1) {
+                    displayPromotionPopover(target, moveCallback);
+                } else {
+                    moveCallback('q');
+                }
+                console.log(' I am returning!');
+                return;
+            }
+        };
+        return 'snapback';
     };
-
-    function onSnapEnd() { // does en passant, promotion, ...
-        board.position(chess.fen());
-        boardEl.find(squareClass).removeClass('opp-highlight-' + (whitePlayer ? 'black' : 'white'));
-    };
-
-
-
 
 
 
