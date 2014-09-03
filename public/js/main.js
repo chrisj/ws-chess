@@ -317,11 +317,7 @@ $(document).ready(function() {
     function handleMove(json) {
         console.log('handleMove', json);
 
-        var move = chess.move({
-            from: json.from,
-            to: json.to,
-            promotion: 'q'
-        });
+        var move = chess.move(json.san);
 
         if (move !== null) {
             boardEl.find('.square-' + move.from).addClass('opp-highlight-' + (whitePlayer ? 'black' : 'white'));
@@ -410,7 +406,6 @@ $(document).ready(function() {
 
 
 
-
     function showLogin () {
         // show login modal
         $.get('templates/login_modal.mst', function (template) {
@@ -465,12 +460,12 @@ $(document).ready(function() {
         if (chess.game_over()) {
             console.log("game over");
             var result;
-            if (chess.in_stalemate()) { // todo, is this enough? what about in_draw()
+            if (chess.in_draw()) {
                 result = ResultEnum.TIE;
-                console.log("game over stalemate");
+                console.log("game over, draw");
             } else {
                 result = (chess.in_checkmate() && !myTurn()) ? ResultEnum.WIN : ResultEnum.LOSE;
-                console.log("game over you", (chess.in_checkmate() && !myTurn()) ? "won" : "lost");
+                console.log("game over, you", (chess.in_checkmate() && !myTurn()) ? "won" : "lost");
             }
 
             socket.emit('end', { result: result });

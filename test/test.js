@@ -9,13 +9,13 @@ var async = require('async');
 var GameModeEnum = {
     STANDARD: 0,
     CHESSATTACK: 1
-}
+};
 
 var ResultEnum = {
     LOSE: 0,
     TIE: 0.5,
     WIN: 1
-}
+};
 
 function login (user, pass, callback) {
     superagent.post(baseURL + '/login')
@@ -97,8 +97,7 @@ function playMoves(activePlayer, inactivePlayer, listofmoves, done) {
 
         inactivePlayer.once('move', function (json) {
             console.log('got move');
-            assert.equal(json.from, move.from);
-            assert.equal(json.to, move.to);
+            assert.equal(json.san, move.san);
             assert.equal(json.fen, move.fen);
 
             playMoves(inactivePlayer, activePlayer, listofmoves.slice(1), done);
@@ -174,9 +173,9 @@ describe('Server', function () {
 
         it('should allow us to ready up and play a game that ends in an agreement', function (done) {
             readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
-                var move1 = { from: 'f2', to: 'f3', fen: 'rnbqkbnr/pppppppp/8/8/8/5P2/PPPPP1PP/RNBQKBNR b KQkq - 0 1'};
-                var move2 = { from: 'e7', to: 'e5', fen: 'rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq e6 0 2'};
-                var move3 = { from: 'e7', to: 'e99', fen: ''};
+                var move1 = { san: 'f3', fen: 'rnbqkbnr/pppppppp/8/8/8/5P2/PPPPP1PP/RNBQKBNR b KQkq - 0 1'};
+                var move2 = { san: 'e5', fen: 'rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq e6 0 2'};
+                var move3 = { san: 'e99', fen: ''};
 
                 var moves = [move1, move2, move3];
 
@@ -226,6 +225,36 @@ describe('Server', function () {
                     });
                 });
             });
+        });
+
+        it('should allow us to ready up and play a game that ends in an agreement', function (done) {
+            readyTwoPlayers(p1Socket, p2Socket, GameModeEnum.STANDARD, function (whiteSocket, blackSocket) {
+                p1Socket.emit('end', {result: ResultEnum.LOSE});
+                p2Socket.emit('end', {result: ResultEnum.LOSE});
+
+                async.parallel([
+                    function (callback) {
+                        whiteSocket.once('end', function (json) {
+                            assert.equal(json.agree, false, 'players both claimed they lost so they should disagree');
+                            assert.equal(json.result, ResultEnum.LOSE);
+                            callback(null, null);
+                            console.log('finished', 1);
+                        });
+                    },
+                    function (callback) {
+                        blackSocket.once('end', function (json) {
+                            assert.equal(json.agree, false, 'players both claimed they lost so they should disagree');
+                            assert.equal(json.result, ResultEnum.LOSE);
+                            callback(null, null);
+                            console.log('finished', 2);
+                        });
+                    }
+                ],
+                function (err, results) {
+                    done();
+                });
+            });
+
         });
 
         it('should give the opposing player a win when a player disconnects without reconnecting within 10 seconds', function (done) {

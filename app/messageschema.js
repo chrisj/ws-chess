@@ -9,8 +9,7 @@ exports.READY = {
 exports.MOVE = {
     type: 'object',
     properties: {
-        from: {type: "string", required: true},
-        to: {type: "string", required: true},
+        san: {type: "string", required: true},
         fen: {type: "string", required: true}
     }
 };
