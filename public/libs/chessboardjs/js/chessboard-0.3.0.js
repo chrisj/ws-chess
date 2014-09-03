@@ -507,7 +507,7 @@ function calculateSquareSize() {
   }
 
   // pad one pixel
-  var boardWidth = containerWidth - 1;
+  var boardWidth = containerWidth;
 
   while (boardWidth % 8 !== 0 && boardWidth > 0) {
     boardWidth--;

@@ -16,9 +16,10 @@ body.modal-open {
 }
 
 #board {
-    width: 100%;
-    max-width: 400px;
-    @include center;
+  background-color: green;
+  width: 100%;
+  max-width: 480px;
+  @include center;
 }
 
 #historyButtons {
